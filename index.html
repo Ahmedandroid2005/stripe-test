@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>تجربة بوابة Stripe - Vercel</title>
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+  h2 { margin-top: 32px; }
+  input { width: 100%; padding: 10px; margin: 6px 0 16px; box-sizing: border-box; }
+  button { padding: 10px 20px; cursor: pointer; }
+  #card-element { border: 1px solid #ccc; padding: 12px; border-radius: 6px; }
+  #result { margin-top: 16px; padding: 12px; border-radius: 6px; }
+  .ok { background: #e6ffed; color: #067d2c; }
+  .err { background: #ffe6e6; color: #b30000; }
+  .hint { color: #666; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>تجربة بوابة Stripe (Vercel)</h1>
+<p class="hint">استخدم مفاتيح test mode فقط (تبدأ بـ pk_test_ و sk_test_). بطاقة الاختبار: 4242 4242 4242 4242، أي تاريخ مستقبلي، أي CVC.</p>
+
+<h2>1) المفاتيح</h2>
+<label>Publishable Key (pk_test_...)</label>
+<input id="pubKey" placeholder="pk_test_...">
+<label>Secret Key (sk_test_...)</label>
+<input id="secKey" type="password" placeholder="sk_test_...">
+<button id="initBtn">تهيئة نموذج البطاقة</button>
+
+<h2>2) مبلغ التجربة</h2>
+<label>المبلغ (بالوحدة الكاملة، مثلاً 5 = 5.00)</label>
+<input id="amount" value="5">
+<label>العملة</label>
+<input id="currency" value="myr">
+
+<h2>3) بيانات البطاقة</h2>
+<div id="card-element"></div>
+<br>
+<button id="payBtn">تنفيذ دفعة تجريبية</button>
+
+<div id="result"></div>
+
+<script>
+let stripe, elements, card;
+
+document.getElementById('initBtn').onclick = () => {
+  const pubKey = document.getElementById('pubKey').value.trim();
+  if (!pubKey.startsWith('pk_')) { showResult(false, 'أدخل publishable key صحيح (يبدأ بـ pk_test_)'); return; }
+
+  stripe = Stripe(pubKey);
+  elements = stripe.elements();
+  card = elements.create('card');
+  card.mount('#card-element');
+  showResult(true, 'جاهز. جهّز بيانات البطاقة واضغط تنفيذ الدفعة.');
+};
+
+document.getElementById('payBtn').onclick = async () => {
+  if (!stripe || !card) { showResult(false, 'اضغط "تهيئة نموذج البطاقة" أولًا.'); return; }
+
+  const secretKey = document.getElementById('secKey').value.trim();
+  const amountMajor = parseFloat(document.getElementById('amount').value);
+  const currency = document.getElementById('currency').value.trim().toLowerCase();
+  const amountMinor = Math.round(amountMajor * 100);
+
+  const res = await fetch('/api/create-payment-intent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secretKey, amount: amountMinor, currency })
+  });
+  const data = await res.json();
+  if (!res.ok) { showResult(false, data.error); return; }
+
+  const result = await stripe.confirmCardPayment(data.clientSecret, {
+    payment_method: { card }
+  });
+
+  if (result.error) {
+    showResult(false, result.error.message);
+  } else if (result.paymentIntent.status === 'succeeded') {
+    showResult(true, 'نجحت الدفعة التجريبية! Payment Intent: ' + result.paymentIntent.id);
+  }
+};
+
+function showResult(ok, msg) {
+  const el = document.getElementById('result');
+  el.className = ok ? 'ok' : 'err';
+  el.textContent = msg;
+}
+</script>
+</body>
+</html>
