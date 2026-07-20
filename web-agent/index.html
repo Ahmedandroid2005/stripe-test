@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>code-agent — ويب</title>
+<style>
+  :root {
+    --bg: #0a0b12;
+    --bg-panel: #12131c;
+    --bg-panel-alt: #191a29;
+    --border: rgba(124, 140, 255, 0.22);
+    --text: #e7e8f2;
+    --text-muted: #8b8fa3;
+    --accent-blue: #6d8cff;
+    --accent-orange: #f2b155;
+    --accent-green: #4ade80;
+    --accent-red: #f87171;
+    --accent-yellow: #f5cc4f;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", "Tahoma", Arial, sans-serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+  }
+  header .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent-green); flex-shrink: 0; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 700; }
+  header .sub { font-size: 12px; color: var(--text-muted); margin-inline-start: auto; direction: ltr; text-align: left; }
+
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .msg { max-width: 88%; line-height: 1.65; font-size: 15px; }
+  .msg.user { align-self: flex-end; background: var(--accent-blue); color: #0a0b12; padding: 10px 14px; border-radius: 14px 14px 3px 14px; font-weight: 500; }
+  .msg.assistant { align-self: flex-start; padding: 2px 2px; color: var(--text); white-space: pre-wrap; }
+  .msg.note { align-self: center; color: var(--accent-yellow); font-size: 13px; background: rgba(245,204,79,0.08); border: 1px solid rgba(245,204,79,0.25); padding: 6px 12px; border-radius: 8px; }
+  .msg.error { align-self: center; color: var(--accent-red); font-size: 13px; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); padding: 6px 12px; border-radius: 8px; }
+
+  .tool-log { align-self: flex-start; direction: ltr; text-align: left; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 12.5px; color: var(--accent-orange); }
+
+  .card {
+    align-self: stretch;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    direction: ltr;
+    text-align: left;
+  }
+  .card .card-head {
+    padding: 9px 12px;
+    background: var(--bg-panel-alt);
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    color: var(--accent-orange);
+    border-bottom: 1px solid var(--border);
+  }
+  .card .card-body {
+    padding: 10px 12px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    max-height: 340px;
+    overflow: auto;
+  }
+  .diff-row { white-space: pre-wrap; word-break: break-word; }
+  .diff-row.add { color: var(--accent-green); }
+  .diff-row.remove { color: var(--accent-red); }
+  .diff-row.context { color: var(--text-muted); }
+  .cmd-line { color: var(--accent-yellow); }
+
+  .card .card-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+  }
+  .card .card-actions button {
+    flex: 1;
+    padding: 9px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-approve { background: var(--accent-green); color: #0a0b12; border-color: var(--accent-green); }
+  .btn-deny { background: transparent; color: var(--accent-red); }
+  .card .card-actions button:disabled { opacity: 0.5; cursor: default; }
+  .card .card-actions button:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+
+  .thinking { align-self: flex-start; color: var(--text-muted); font-size: 13.5px; }
+
+  footer {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    background: var(--bg-panel);
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  footer textarea {
+    flex: 1;
+    resize: none;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    max-height: 120px;
+  }
+  footer textarea:focus-visible, footer button:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+  footer button {
+    background: var(--accent-blue);
+    color: #0a0b12;
+    border: none;
+    border-radius: 10px;
+    padding: 0 18px;
+    height: 42px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  footer button:disabled { opacity: 0.5; }
+
+  .gate {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 11, 18, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 10;
+  }
+  .gate-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    max-width: 340px;
+    width: 100%;
+  }
+  .gate-card h2 { font-size: 16px; margin: 0 0 8px; }
+  .gate-card p { font-size: 13.5px; color: var(--text-muted); margin: 0 0 14px; line-height: 1.6; }
+  .gate-card input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 15px;
+    margin-bottom: 10px;
+    direction: ltr;
+  }
+  .gate-card input:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+  .gate-card button {
+    width: 100%;
+    background: var(--accent-blue);
+    color: #0a0b12;
+    border: none;
+    border-radius: 8px;
+    padding: 11px;
+    font-weight: 700;
+    font-size: 14.5px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+  <div class="gate" id="gate">
+    <div class="gate-card">
+      <h2>code-agent</h2>
+      <p>أدخل كلمة المرور (Access Token) اللي ضبطتها في متغيّر البيئة <code>AGENT_ACCESS_TOKEN</code> على Vercel.</p>
+      <input type="password" id="gate-input" placeholder="Access token" autocomplete="off" />
+      <button id="gate-submit">دخول</button>
+    </div>
+  </div>
+
+  <header>
+    <span class="dot"></span>
+    <h1>code-agent</h1>
+    <span class="sub" id="header-sub">web</span>
+  </header>
+
+  <main id="chat"></main>
+
+  <footer>
+    <textarea id="input" rows="1" placeholder="اكتب طلبك..." disabled></textarea>
+    <button id="send" disabled>إرسال</button>
+  </footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var state = {
+    token: localStorage.getItem('codeAgentToken') || '',
+    history: [],
+    busy: false,
+  };
+
+  var chatEl = document.getElementById('chat');
+  var inputEl = document.getElementById('input');
+  var sendBtn = document.getElementById('send');
+  var gateEl = document.getElementById('gate');
+  var gateInput = document.getElementById('gate-input');
+  var gateSubmit = document.getElementById('gate-submit');
+
+  function el(tag, opts) {
+    opts = opts || {};
+    var node = document.createElement(tag);
+    if (opts.className) node.className = opts.className;
+    if (opts.text !== undefined) node.textContent = opts.text;
+    return node;
+  }
+
+  function scrollToBottom() {
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function addUser(text) {
+    var m = el('div', { className: 'msg user', text: text });
+    chatEl.appendChild(m);
+    scrollToBottom();
+  }
+
+  function addAssistant(text) {
+    var m = el('div', { className: 'msg assistant', text: text || '(بدون رد نصي)' });
+    chatEl.appendChild(m);
+    scrollToBottom();
+  }
+
+  function addNote(text, isError) {
+    var m = el('div', { className: 'msg ' + (isError ? 'error' : 'note'), text: text });
+    chatEl.appendChild(m);
+    scrollToBottom();
+  }
+
+  function addToolLog(name, input) {
+    var m = el('div', { className: 'tool-log', text: '⏺ ' + name + ' ' + JSON.stringify(input) });
+    chatEl.appendChild(m);
+    scrollToBottom();
+  }
+
+  var thinkingEl = null;
+  function showThinking() {
+    thinkingEl = el('div', { className: 'thinking', text: '...جاري التفكير' });
+    chatEl.appendChild(thinkingEl);
+    scrollToBottom();
+  }
+  function hideThinking() {
+    if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
+    thinkingEl = null;
+  }
+
+  // Minimal LCS line diff, capped for very large files to keep the UI responsive.
+  function diffLines(oldStr, newStr) {
+    var a = (oldStr || '').split('\n');
+    var b = (newStr || '').split('\n');
+    var n = a.length, m = b.length;
+
+    if (n > 1500 || m > 1500) {
+      var out = [{ type: 'context', text: '[الملف كبير جدًا لعرض diff كامل — عرض المحتوى الجديد فقط]' }];
+      for (var k = 0; k < b.length; k++) out.push({ type: 'add', text: b[k] });
+      return out;
+    }
+
+    var dp = new Array(n + 1);
+    for (var i = 0; i <= n; i++) dp[i] = new Uint32Array(m + 1);
+    for (i = n - 1; i >= 0; i--) {
+      for (var j = m - 1; j >= 0; j--) {
+        dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+
+    var result = [];
+    i = 0; j = 0;
+    while (i < n && j < m) {
+      if (a[i] === b[j]) { result.push({ type: 'context', text: a[i] }); i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) { result.push({ type: 'remove', text: a[i] }); i++; }
+      else { result.push({ type: 'add', text: b[j] }); j++; }
+    }
+    while (i < n) { result.push({ type: 'remove', text: a[i] }); i++; }
+    while (j < m) { result.push({ type: 'add', text: b[j] }); j++; }
+    return result;
+  }
+
+  function addConfirmCard(pending) {
+    var card = el('div', { className: 'card' });
+    var head = el('div', { className: 'card-head' });
+    var body = el('div', { className: 'card-body' });
+
+    if (pending.preview.kind === 'diff') {
+      head.textContent = pending.toolName + '  ' + pending.preview.path;
+      var rows = diffLines(pending.preview.oldContent, pending.preview.newContent);
+      var capped = rows.slice(0, 400);
+      capped.forEach(function (r) {
+        var prefix = r.type === 'add' ? '+ ' : r.type === 'remove' ? '- ' : '  ';
+        var row = el('div', { className: 'diff-row ' + r.type, text: prefix + r.text });
+        body.appendChild(row);
+      });
+      if (rows.length > 400) body.appendChild(el('div', { className: 'diff-row context', text: '[...' + (rows.length - 400) + ' سطر إضافي]' }));
+    } else if (pending.preview.kind === 'command') {
+      head.textContent = 'run_command';
+      body.appendChild(el('div', { className: 'cmd-line', text: '$ ' + pending.preview.command }));
+    } else {
+      head.textContent = pending.toolName;
+      body.appendChild(el('div', { className: 'diff-row context', text: JSON.stringify(pending.input) }));
+    }
+
+    var actions = el('div', { className: 'card-actions' });
+    var approveBtn = el('button', { className: 'btn-approve', text: 'موافقة وتنفيذ' });
+    var denyBtn = el('button', { className: 'btn-deny', text: 'رفض' });
+    actions.appendChild(approveBtn);
+    actions.appendChild(denyBtn);
+
+    card.appendChild(head);
+    card.appendChild(body);
+    card.appendChild(actions);
+    chatEl.appendChild(card);
+    scrollToBottom();
+
+    function decide(approved) {
+      approveBtn.disabled = true;
+      denyBtn.disabled = true;
+      resume(pending, approved);
+    }
+    approveBtn.addEventListener('click', function () { decide(true); });
+    denyBtn.addEventListener('click', function () { decide(false); });
+  }
+
+  function setBusy(busy) {
+    state.busy = busy;
+    inputEl.disabled = busy || !state.token;
+    sendBtn.disabled = busy || !state.token;
+  }
+
+  async function callApi(payload) {
+    var res = await fetch('/api/agent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + state.token,
+      },
+      body: JSON.stringify(payload),
+    });
+    var data = await res.json().catch(function () { return { error: 'استجابة غير صالحة من الخادم.' }; });
+    if (!res.ok) {
+      throw new Error(data.error || ('HTTP ' + res.status));
+    }
+    return data;
+  }
+
+  function handleResult(data) {
+    state.history = data.history || state.history;
+
+    if (data.status === 'confirm_required') {
+      addToolLog(data.toolName, data.input);
+      addConfirmCard(data);
+      return;
+    }
+
+    addAssistant(data.reply);
+  }
+
+  async function send(text) {
+    setBusy(true);
+    addUser(text);
+    showThinking();
+    try {
+      var data = await callApi({ message: text, history: state.history });
+      hideThinking();
+      handleResult(data);
+    } catch (err) {
+      hideThinking();
+      addNote(err.message, true);
+    } finally {
+      setBusy(false);
+      inputEl.focus();
+    }
+  }
+
+  async function resume(pending, approved) {
+    setBusy(true);
+    showThinking();
+    try {
+      var data = await callApi({
+        history: state.history,
+        resume: {
+          toolUseId: pending.toolUseId,
+          toolName: pending.toolName,
+          input: pending.input,
+          approved: approved,
+          pendingBlocks: pending.pendingBlocks,
+          completedResults: pending.completedResults,
+        },
+      });
+      hideThinking();
+      addNote(approved ? 'تم التنفيذ.' : 'تم الرفض.', false);
+      handleResult(data);
+    } catch (err) {
+      hideThinking();
+      addNote(err.message, true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  sendBtn.addEventListener('click', function () {
+    var text = inputEl.value.trim();
+    if (!text || state.busy) return;
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    send(text);
+  });
+
+  inputEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendBtn.click();
+    }
+  });
+
+  inputEl.addEventListener('input', function () {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  });
+
+  function unlock() {
+    gateEl.style.display = 'none';
+    setBusy(false);
+    inputEl.focus();
+  }
+
+  gateSubmit.addEventListener('click', function () {
+    var val = gateInput.value.trim();
+    if (!val) return;
+    state.token = val;
+    localStorage.setItem('codeAgentToken', val);
+    unlock();
+  });
+  gateInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') gateSubmit.click();
+  });
+
+  if (state.token) {
+    unlock();
+  } else {
+    setBusy(true);
+  }
+})();
+</script>
+</body>
+</html>
