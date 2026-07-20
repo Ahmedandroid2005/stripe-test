@@ -1,0 +1,29 @@
+{
+  "name": "code-agent-cli",
+  "version": "0.1.0",
+  "description": "Standalone terminal coding assistant powered by Claude, with workspace-aware file tools and command execution.",
+  "type": "module",
+  "bin": {
+    "code-agent": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@inquirer/prompts": "^8.5.2",
+    "chalk": "^5.3.0",
+    "diff": "^5.2.0",
+    "dotenv": "^16.4.5",
+    "execa": "^9.3.0",
+    "fast-glob": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/diff": "^5.2.1",
+    "@types/node": "^20.14.11",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  }
+}
