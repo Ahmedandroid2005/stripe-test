@@ -18,12 +18,16 @@ module.exports = async (req, res) => {
     return res.status(err.status || 401).json({ error: err.message });
   }
 
-  const owner = process.env.GITHUB_OWNER;
-  const repo = process.env.GITHUB_REPO;
-  const branch = process.env.GITHUB_BRANCH || 'code-agent';
-  const baseBranch = process.env.GITHUB_BASE_BRANCH || 'main';
-  const githubToken = process.env.GITHUB_TOKEN;
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  // .trim() guards against a trailing newline/space sneaking in when a
+  // secret is copy-pasted from a mobile notes app into Vercel's env var UI —
+  // that stray whitespace otherwise breaks the outgoing HTTP headers and
+  // surfaces as an opaque "Connection error." with no useful detail.
+  const owner = (process.env.GITHUB_OWNER || '').trim();
+  const repo = (process.env.GITHUB_REPO || '').trim();
+  const branch = (process.env.GITHUB_BRANCH || 'code-agent').trim();
+  const baseBranch = (process.env.GITHUB_BASE_BRANCH || 'main').trim();
+  const githubToken = (process.env.GITHUB_TOKEN || '').trim();
+  const anthropicKey = (process.env.ANTHROPIC_API_KEY || '').trim();
 
   if (!owner || !repo || !githubToken || !anthropicKey) {
     return res.status(500).json({
@@ -86,7 +90,12 @@ module.exports = async (req, res) => {
       history,
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    // Log full detail server-side (visible in Vercel's Runtime Logs) since
+    // SDK network errors often collapse to a generic "Connection error."
+    // with the real cause only available on err.cause.
+    console.error('agent.js failure:', err, err && err.cause);
+    const causeMessage = err && err.cause && err.cause.message ? ` (${err.cause.message})` : '';
+    return res.status(500).json({ error: (err.message || 'Unknown error') + causeMessage });
   }
 };
 

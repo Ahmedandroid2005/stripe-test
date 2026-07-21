@@ -10,7 +10,7 @@ function safeEqual(a, b) {
 }
 
 function checkAuth(req) {
-  const expected = process.env.AGENT_ACCESS_TOKEN;
+  const expected = (process.env.AGENT_ACCESS_TOKEN || '').trim();
   if (!expected) {
     const err = new Error('Server misconfigured: AGENT_ACCESS_TOKEN is not set.');
     err.status = 500;
