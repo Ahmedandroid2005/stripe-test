@@ -205,7 +205,7 @@ async function previewWriteFile(input, ctx) {
 async function writeFileTool(input, ctx) {
   const { path: relPath, newContent, sha } = await previewWriteFile(input, ctx);
   await ensureBranch(ctx.token, ctx.owner, ctx.repo, ctx.branch, ctx.baseBranch);
-  await putFile(ctx.token, ctx.owner, ctx.repo, ctx.branch, relPath, newContent, `code-agent: write ${relPath}`, sha);
+  await putFile(ctx.token, ctx.owner, ctx.repo, ctx.branch, relPath, newContent, `Nexus Code: write ${relPath}`, sha);
   return `Committed ${relPath} to branch "${ctx.branch}".`;
 }
 
@@ -243,7 +243,7 @@ async function editFileTool(input, ctx) {
     ctx.branch,
     preview.path,
     preview.newContent,
-    `code-agent: edit ${preview.path}`,
+    `Nexus Code: edit ${preview.path}`,
     preview.sha
   );
   return `Committed edit to ${preview.path} on branch "${ctx.branch}".`;
