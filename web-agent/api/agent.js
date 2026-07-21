@@ -6,7 +6,12 @@ const { toolSchemas, execute, isMutating, previewWriteFile, previewEditFile } = 
 const { ensureBranch } = require('../lib/github');
 const buildSystemPrompt = require('../lib/systemPrompt');
 
-const MAX_ROUNDS = 6;
+// The V1 workflow (analyze -> plan -> implement -> self-review -> verify)
+// chains more model/tool round-trips per request than a simple Q&A turn,
+// so this has more headroom than a basic chat loop needs — still well
+// within Vercel's 60s function limit since safe (auto-executed) tool
+// calls like read_file/search_code are fast GitHub API round-trips.
+const MAX_ROUNDS = 10;
 const MAX_ATTACHMENTS = 3;
 const MAX_BASE64_CHARS = 6_000_000; // ~4.5MB raw, keeps us under Vercel's request body cap
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);

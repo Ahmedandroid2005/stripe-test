@@ -1,39 +1,16 @@
 'use strict';
 
-const path = require('node:path');
-const os = require('node:os');
-const fs = require('node:fs/promises');
-const { execFile } = require('node:child_process');
-const { getFile, putFile, getTree, ensureBranch } = require('./github');
+// Module: Project Analysis & Code Generation (reads, searches, and writes
+// the repository via GitHub's API — see ../../ARCHITECTURE.md for how this
+// fits into the rest of the system).
+
+const { getFile, putFile, getTree, ensureBranch } = require('../github');
+const { validateRelPath, simpleGlobToRegExp } = require('./pathSafety');
 
 const MAX_CHARS = 60000;
-const MAX_OUTPUT_CHARS = 20000;
-const MUTATING_TOOLS = new Set(['write_file', 'edit_file', 'run_command']);
 const BINARY_EXT = /\.(png|jpe?g|gif|ico|webp|pdf|zip|gz|tar|mp4|mp3|woff2?|ttf|eot|bin|exe|lock)$/i;
 
-function isMutating(name) {
-  return MUTATING_TOOLS.has(name);
-}
-
-function validateRelPath(p) {
-  if (typeof p !== 'string' || !p || p.startsWith('/') || p.includes('..')) {
-    const err = new Error(`Invalid path: "${p}"`);
-    err.status = 400;
-    throw err;
-  }
-  return p;
-}
-
-function simpleGlobToRegExp(glob) {
-  const escapeRegExp = (s) => s.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-  const escaped = glob
-    .split('**')
-    .map((part) => escapeRegExp(part).replace(/\*/g, '[^/]*').replace(/\?/g, '.'))
-    .join('.*');
-  return new RegExp(`^${escaped}$`);
-}
-
-const toolSchemas = [
+const schemas = [
   {
     name: 'read_file',
     description: 'Read a text file from the repository at the configured branch.',
@@ -91,46 +68,7 @@ const toolSchemas = [
       required: ['path', 'oldText', 'newText'],
     },
   },
-  {
-    name: 'run_command',
-    description:
-      'Run a shell command against a fresh checkout of the current branch in an isolated, throwaway sandbox. ' +
-      'The checkout is fetched fresh at the start of every call and discarded afterward — nothing persists ' +
-      'between separate run_command calls, and anything the command writes is NOT saved back to the repo. ' +
-      'Use it to run tests/lints/builds, not to save changes (use write_file/edit_file for that). ' +
-      'Combine setup and action into one command, e.g. "npm install && npm test". Requires user confirmation.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        command: { type: 'string' },
-        timeoutMs: { type: 'number' },
-      },
-      required: ['command'],
-    },
-  },
 ];
-
-async function execute(name, input, ctx) {
-  switch (name) {
-    case 'read_file':
-      return readFileTool(input, ctx);
-    case 'list_files':
-      return listFilesTool(input, ctx);
-    case 'search_code':
-      return searchCodeTool(input, ctx);
-    case 'write_file':
-      return writeFileTool(input, ctx);
-    case 'edit_file':
-      return editFileTool(input, ctx);
-    case 'run_command':
-      return runCommandTool(input, ctx);
-    default: {
-      const err = new Error(`Unknown tool: ${name}`);
-      err.status = 400;
-      throw err;
-    }
-  }
-}
 
 async function readFileTool(input, ctx) {
   const relPath = validateRelPath(input.path);
@@ -184,9 +122,8 @@ async function searchCodeTool(input, ctx) {
   return results.length ? results.join('\n') : 'No matches found.';
 }
 
-// --- mutating tools ---------------------------------------------------
-// Split into preview (read-only, safe to call before confirmation) and
-// the real execute (only called after the user approves).
+// Split into preview (read-only, safe to call before confirmation) and the
+// real execute (only called after the user approves).
 
 async function previewWriteFile(input, ctx) {
   const relPath = validateRelPath(input.path);
@@ -249,57 +186,16 @@ async function editFileTool(input, ctx) {
   return `Committed edit to ${preview.path} on branch "${ctx.branch}".`;
 }
 
-const HARD_BLOCKLIST = [
-  /\brm\s+-rf\s+\/(\s|$)/,
-  /\bmkfs\b/,
-  /\bdd\s+if=/,
-  /:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;/,
-  />\s*\/dev\/sd[a-z]/,
-];
-
-async function runCommandTool(input, ctx) {
-  const command = String(input.command || '');
-  if (HARD_BLOCKLIST.some((re) => re.test(command))) {
-    return 'This command matches a hard-blocked destructive pattern and was not run.';
-  }
-
-  const workdir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-agent-'));
-  try {
-    await checkoutTreeToDisk(ctx, workdir);
-    const { stdout, stderr, exitCode } = await runShell(command, workdir, input.timeoutMs);
-    const combined = `exit code: ${exitCode}\n\nstdout:\n${stdout}\n\nstderr:\n${stderr}`;
-    return combined.length > MAX_OUTPUT_CHARS ? combined.slice(0, MAX_OUTPUT_CHARS) + '\n[...truncated]' : combined;
-  } finally {
-    await fs.rm(workdir, { recursive: true, force: true }).catch(() => {});
-  }
-}
-
-async function checkoutTreeToDisk(ctx, workdir) {
-  const entries = await getTree(ctx.token, ctx.owner, ctx.repo, ctx.branch);
-  const textLike = entries.filter((e) => e.size < 500000 && !BINARY_EXT.test(e.path)).slice(0, 300);
-  for (const entry of textLike) {
-    const { content } = await getFile(ctx.token, ctx.owner, ctx.repo, ctx.branch, entry.path);
-    const dest = path.join(workdir, entry.path);
-    await fs.mkdir(path.dirname(dest), { recursive: true });
-    await fs.writeFile(dest, content, 'utf-8');
-  }
-}
-
-function runShell(command, cwd, timeoutMs) {
-  return new Promise((resolve) => {
-    execFile(
-      '/bin/sh',
-      ['-c', command],
-      { cwd, timeout: Math.min(Number(timeoutMs) || 45000, 50000), maxBuffer: 5 * 1024 * 1024 },
-      (error, stdout, stderr) => {
-        resolve({
-          stdout: stdout || '',
-          stderr: stderr || (error && !stdout ? error.message : ''),
-          exitCode: error ? (error.code ?? 1) : 0,
-        });
-      }
-    );
-  });
-}
-
-module.exports = { toolSchemas, execute, isMutating, previewWriteFile, previewEditFile };
+module.exports = {
+  schemas,
+  execute: {
+    read_file: readFileTool,
+    list_files: listFilesTool,
+    search_code: searchCodeTool,
+    write_file: writeFileTool,
+    edit_file: editFileTool,
+  },
+  previewWriteFile,
+  previewEditFile,
+  BINARY_EXT,
+};
