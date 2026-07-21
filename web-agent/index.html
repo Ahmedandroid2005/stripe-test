@@ -134,6 +134,10 @@
     line-height: 1.6;
   }
   .msg.assistant .code-block code { white-space: pre; }
+  .tok-keyword { color: #4f46e5; font-weight: 600; }
+  .tok-string { color: #15803d; }
+  .tok-number { color: #b45309; }
+  .tok-comment { color: #8a8a94; font-style: italic; }
 
   .msg.note { align-self: center; color: var(--accent-yellow); font-size: 13px; background: rgba(245,204,79,0.08); border: 1px solid rgba(245,204,79,0.25); padding: 6px 14px; border-radius: 20px; }
   .msg.error { align-self: center; color: var(--accent-red); font-size: 13px; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); padding: 6px 14px; border-radius: 20px; }
@@ -692,11 +696,56 @@
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  // ---- lightweight syntax highlighting (no external deps) ----
+  var KEYWORD_SETS = {
+    js: ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'class', 'extends', 'new', 'this', 'import', 'export', 'from', 'default', 'async', 'await', 'try', 'catch', 'finally', 'throw', 'typeof', 'instanceof', 'switch', 'case', 'break', 'continue', 'null', 'undefined', 'true', 'false', 'static', 'get', 'set', 'yield', 'of', 'in', 'do'],
+    py: ['def', 'return', 'if', 'elif', 'else', 'for', 'while', 'class', 'import', 'from', 'as', 'try', 'except', 'finally', 'raise', 'with', 'lambda', 'pass', 'break', 'continue', 'None', 'True', 'False', 'and', 'or', 'not', 'in', 'is', 'yield', 'async', 'await', 'self'],
+    sh: ['if', 'then', 'else', 'elif', 'fi', 'for', 'while', 'do', 'done', 'function', 'return', 'echo', 'export', 'local', 'case', 'esac', 'in'],
+    json: ['true', 'false', 'null'],
+  };
+  function keywordsFor(lang) {
+    var l = (lang || '').toLowerCase();
+    if (['js', 'javascript', 'jsx', 'ts', 'typescript', 'tsx', 'node'].indexOf(l) !== -1) return KEYWORD_SETS.js;
+    if (['py', 'python'].indexOf(l) !== -1) return KEYWORD_SETS.py;
+    if (['sh', 'bash', 'shell', 'zsh'].indexOf(l) !== -1) return KEYWORD_SETS.sh;
+    if (l === 'json') return KEYWORD_SETS.json;
+    return KEYWORD_SETS.js;
+  }
+  function escapeRegExpLiteral(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  function highlightCode(code, lang) {
+    var keywords = keywordsFor(lang);
+    var kwPattern = keywords.length ? '\\b(?:' + keywords.map(escapeRegExpLiteral).join('|') + ')\\b' : '(?!)';
+    var pattern = new RegExp(
+      '(//[^\\n]*)' +
+      '|(#[^\\n]*)' +
+      "|('(?:\\\\.|[^'\\\\])*')" +
+      '|("(?:\\\\.|[^"\\\\])*")' +
+      '|(`(?:\\\\.|[^`\\\\])*`)' +
+      '|(\\b\\d+\\.?\\d*\\b)' +
+      '|(' + kwPattern + ')',
+      'g'
+    );
+    var out = '';
+    var last = 0;
+    var m;
+    while ((m = pattern.exec(code))) {
+      out += escapeHtml(code.slice(last, m.index));
+      var cls = (m[1] || m[2]) ? 'tok-comment' : (m[3] || m[4] || m[5]) ? 'tok-string' : m[6] ? 'tok-number' : 'tok-keyword';
+      out += '<span class="' + cls + '">' + escapeHtml(m[0]) + '</span>';
+      last = pattern.lastIndex;
+      if (m[0].length === 0) pattern.lastIndex++;
+    }
+    out += escapeHtml(code.slice(last));
+    return out;
+  }
+
   function renderMarkdown(raw) {
     var blocks = [];
     var text = raw.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, function (_, lang, code) {
       var idx = blocks.length;
-      blocks.push('<pre class="code-block"><code>' + escapeHtml(code.replace(/\n$/, '')) + '</code></pre>');
+      blocks.push('<pre class="code-block"><code>' + highlightCode(code.replace(/\n$/, ''), lang) + '</code></pre>');
       return '' + idx + '';
     });
 
