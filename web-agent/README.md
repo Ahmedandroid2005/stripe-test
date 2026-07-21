@@ -1,8 +1,22 @@
-# code-agent-web
+# Nexus Code (by Al-Sharqawi Tech, LLC)
 
 The same idea as `../cli-agent` (Claude-powered coding assistant with file
 read/write/edit and command execution), packaged as a Vercel app you can run
-from a phone browser — no laptop, no terminal app required.
+from a phone browser — no laptop, no terminal app required. Installable as a
+home-screen app (PWA) on iOS/Android.
+
+## Install it as an app on your phone
+
+1. Open the deployed URL in Safari (iOS) or Chrome (Android).
+2. iOS: tap the Share icon → **Add to Home Screen**. Android/Chrome: tap the
+   ⋮ menu → **Add to Home screen** / **Install app**.
+3. It launches full-screen with its own icon and name ("Nexus Code"), no
+   browser address bar — like a real installed app.
+
+The icon/name come from `manifest.json` and the `icons/` folder. To change
+the logo, edit `scripts/generate-icons.js` and rerun
+`node scripts/generate-icons.js` (needs `npm install` first — it uses
+`sharp`, a dev-only dependency not used at runtime).
 
 ## Why it's built differently from the CLI version
 

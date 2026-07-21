@@ -4,5 +4,8 @@
   "private": true,
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.3"
   }
 }

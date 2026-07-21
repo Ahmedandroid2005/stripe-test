@@ -3,7 +3,20 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>code-agent — ويب</title>
+<title>Nexus Code</title>
+<meta name="description" content="Nexus Code by Al-Sharqawi Tech, LLC" />
+
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" type="image/png" href="/icons/icon-32.png" />
+<link rel="apple-touch-icon" href="/icons/icon-180.png" />
+<meta name="theme-color" content="#4f46e5" />
+
+<!-- Add-to-home-screen: launches full-screen without Safari chrome -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Nexus Code" />
+<meta name="application-name" content="Nexus Code" />
 <style>
   :root {
     --bg: #ffffff;
@@ -306,7 +319,8 @@
     width: 100%;
     box-shadow: var(--shadow);
   }
-  .gate-card h2 { font-size: 17px; margin: 0 0 8px; }
+  .gate-card h2 { font-size: 17px; margin: 0 0 2px; }
+  .gate-card .gate-brand { font-size: 12px; color: var(--accent-blue); font-weight: 600; margin: 0 0 14px; letter-spacing: 0.02em; }
   .gate-card p { font-size: 13.5px; color: var(--text-muted); margin: 0 0 16px; line-height: 1.6; }
   .gate-card input {
     width: 100%;
@@ -337,7 +351,8 @@
 
   <div class="gate" id="gate">
     <div class="gate-card">
-      <h2>code-agent</h2>
+      <h2>Nexus Code</h2>
+      <p class="gate-brand">Al-Sharqawi Tech, LLC</p>
       <p>أدخل كلمة المرور (Access Token) اللي ضبطتها في متغيّر البيئة <code>AGENT_ACCESS_TOKEN</code> على Vercel.</p>
       <input type="password" id="gate-input" placeholder="Access token" autocomplete="off" />
       <button id="gate-submit">دخول</button>
@@ -346,8 +361,8 @@
 
   <header>
     <span class="dot"></span>
-    <h1>code-agent</h1>
-    <span class="sub" id="header-sub">web</span>
+    <h1>Nexus Code</h1>
+    <span class="sub" id="header-sub">Al-Sharqawi Tech</span>
   </header>
 
   <main id="chat-scroll"><div class="column" id="chat"></div></main>
