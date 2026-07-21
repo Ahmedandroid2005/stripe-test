@@ -50,6 +50,13 @@ function buildUserContent(message, attachments) {
   return blocks;
 }
 
+// switch_repo can mutate ctx mid-request; sending the (possibly changed)
+// active repo back on every response lets the client keep its stored
+// repoConfig in sync automatically instead of the user re-typing it.
+function activeRepoOf(ctx) {
+  return { owner: ctx.owner, repo: ctx.repo, branch: ctx.branch };
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -94,7 +101,7 @@ module.exports = async (req, res) => {
     if (resume) {
       const outcome = await resolvePending(resume, ctx);
       if (outcome.confirmRequired) {
-        return res.status(200).json({ status: 'confirm_required', ...outcome.confirmRequired, history });
+        return res.status(200).json({ status: 'confirm_required', ...outcome.confirmRequired, history, activeRepo: activeRepoOf(ctx) });
       }
       history.push({ role: 'user', content: outcome.results });
     } else if ((typeof message === 'string' && message.trim()) || (Array.isArray(attachments) && attachments.length)) {
@@ -139,7 +146,7 @@ module.exports = async (req, res) => {
           .filter((b) => b.type === 'text')
           .map((b) => b.text)
           .join('\n');
-        emit({ type: 'final', status: 'done', reply: text, history });
+        emit({ type: 'final', status: 'done', reply: text, history, activeRepo: activeRepoOf(ctx) });
         return res.end();
       }
 
@@ -147,7 +154,7 @@ module.exports = async (req, res) => {
       const outcome = await processBlocks(blocks, [], ctx);
 
       if (outcome.confirmRequired) {
-        emit({ type: 'final', status: 'confirm_required', ...outcome.confirmRequired, history });
+        emit({ type: 'final', status: 'confirm_required', ...outcome.confirmRequired, history, activeRepo: activeRepoOf(ctx) });
         return res.end();
       }
 
@@ -159,6 +166,7 @@ module.exports = async (req, res) => {
       status: 'done',
       reply: `Stopped after ${MAX_ROUNDS} tool rounds in this request to stay under the serverless time limit — send a follow-up to continue.`,
       history,
+      activeRepo: activeRepoOf(ctx),
     });
     return res.end();
   } catch (err) {

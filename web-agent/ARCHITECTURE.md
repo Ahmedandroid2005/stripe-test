@@ -26,6 +26,7 @@ nothing else in the request pipeline changes.
 | **Long-term Memory** | `lib/systemPrompt.js` (memory section) + `NEXUS.md` in the target repo | The model reads/maintains a `NEXUS.md` file (architecture, coding standards, decisions, to-dos, known issues, goals, best practices) using the same file tools above — no separate memory store |
 | **Confirmation / Safety** | `api/agent.js` (`processBlocks`, `buildPreview`) | Every mutating tool call (write/edit/run) pauses for explicit user approval with a diff or command preview before executing |
 | **Multi-repo targeting** | `api/agent.js` (`repoConfig`) + drawer settings in `index.html` | owner/repo/branch can be overridden per session from the UI instead of being fixed to one Vercel deployment |
+| **Repo discovery & switching** | `lib/tools/repoTools.js` (`list_repos`, `switch_repo`) | The model can list every repo the GitHub token can see and switch the active one mid-conversation when the user names a different project — no manual settings-panel editing required. The server reports the (possibly changed) active repo on every response so the client's stored settings stay in sync automatically |
 
 ## Planned modules (not implemented — this is the honest part)
 

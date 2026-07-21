@@ -78,4 +78,27 @@ async function ensureBranch(token, owner, repo, branch, baseBranch) {
   });
 }
 
-module.exports = { getFile, putFile, getTree, ensureBranch };
+/** Lists repositories the token can access (owned + collaborator), newest-updated first. */
+async function listRepos(token) {
+  const repos = await ghFetch(token, '/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator');
+  return repos.map((r) => ({
+    fullName: r.full_name,
+    private: r.private,
+    description: r.description || '',
+    updatedAt: r.updated_at,
+    defaultBranch: r.default_branch,
+  }));
+}
+
+/** True if the token can read this repo, false on 404/403, throws on any other failure. */
+async function repoExists(token, owner, repo) {
+  try {
+    await ghFetch(token, `/repos/${owner}/${repo}`);
+    return true;
+  } catch (err) {
+    if (err.status === 404 || err.status === 403) return false;
+    throw err;
+  }
+}
+
+module.exports = { getFile, putFile, getTree, ensureBranch, listRepos, repoExists };

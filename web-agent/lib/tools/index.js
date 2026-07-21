@@ -8,8 +8,9 @@
 
 const fileTools = require('./fileTools');
 const execTools = require('./execTools');
+const repoTools = require('./repoTools');
 
-const MODULES = [fileTools, execTools];
+const MODULES = [fileTools, execTools, repoTools];
 
 const MUTATING_TOOLS = new Set(['write_file', 'edit_file', 'run_command']);
 

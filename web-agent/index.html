@@ -1050,9 +1050,33 @@
     return finalEvent;
   }
 
+  /**
+   * If the model called switch_repo, the server reports the (possibly new)
+   * active repo on every response — keep localStorage and the settings
+   * inputs in sync so the user doesn't have to manually mirror a switch
+   * the model already made.
+   */
+  function syncActiveRepo(activeRepo) {
+    if (!activeRepo) return;
+    var cfg = {};
+    if (activeRepo.owner) cfg.owner = activeRepo.owner;
+    if (activeRepo.repo) cfg.repo = activeRepo.repo;
+    if (activeRepo.branch) cfg.branch = activeRepo.branch;
+    state.repoConfig = cfg;
+    try {
+      localStorage.setItem(REPO_KEY, JSON.stringify(cfg));
+    } catch {
+      // non-fatal — just won't survive a refresh
+    }
+    repoOwnerInput.value = cfg.owner || '';
+    repoNameInput.value = cfg.repo || '';
+    repoBranchInput.value = cfg.branch || '';
+  }
+
   function handleResult(data, liveBubbleEl) {
     state.history = data.history || state.history;
     persistActiveChat();
+    syncActiveRepo(data.activeRepo);
 
     var text = data._streamedText !== undefined ? data._streamedText : data.reply;
 
