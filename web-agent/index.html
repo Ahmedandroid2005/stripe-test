@@ -345,6 +345,80 @@
     font-size: 14.5px;
     cursor: pointer;
   }
+
+  /* ---- chat drawer ---- */
+  .drawer-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(10, 10, 16, 0.35);
+    z-index: 8;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed;
+    top: 0; bottom: 0; right: 0;
+    width: min(82vw, 320px);
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    z-index: 9;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -18px 0 40px -20px rgba(0,0,0,0.25);
+    padding-top: env(safe-area-inset-top);
+    transform: translateX(100%);
+    transition: transform 0.22s ease;
+  }
+  .drawer.open { transform: translateX(0); }
+  @media (prefers-reduced-motion: reduce) {
+    .drawer, .drawer-backdrop { transition: none; }
+  }
+  .drawer-head { padding: 14px; border-bottom: 1px solid var(--border); }
+  .new-chat-btn {
+    width: 100%;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--accent-blue);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 11px;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .new-chat-btn svg { width: 17px; height: 17px; }
+  .drawer-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .drawer-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 2px;
+  }
+  .drawer-item:hover { background: var(--bg-panel-alt); }
+  .drawer-item.active { background: var(--bg-panel-alt); }
+  .drawer-item .title {
+    flex: 1;
+    font-size: 13.5px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .drawer-item .del {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .drawer-item .del:hover { background: rgba(220,38,38,0.12); color: var(--accent-red); }
 </style>
 </head>
 <body>
@@ -360,10 +434,24 @@
   </div>
 
   <header>
+    <button class="icon-btn" id="menu-btn" type="button" aria-label="المحادثات">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="14" y2="17"/></svg>
+    </button>
     <span class="dot"></span>
     <h1>Nexus Code</h1>
     <span class="sub" id="header-sub">Al-Sharqawi Tech</span>
   </header>
+
+  <div class="drawer-backdrop" id="drawer-backdrop"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
+      <button class="new-chat-btn" id="new-chat-btn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        محادثة جديدة
+      </button>
+    </div>
+    <div class="drawer-list" id="drawer-list"></div>
+  </aside>
 
   <main id="chat-scroll"><div class="column" id="chat"></div></main>
 
@@ -391,11 +479,15 @@
   var MAX_FILE_BYTES = 4 * 1024 * 1024;
   var ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf'];
 
+  var CHATS_KEY = 'nexusChats';
+
   var state = {
     token: localStorage.getItem('codeAgentToken') || '',
     history: [],
     busy: false,
     pendingAttachments: [], // {mediaType, data, name, isImage}
+    chats: [],
+    activeChatId: null,
   };
 
   var chatEl = document.getElementById('chat');
@@ -408,6 +500,11 @@
   var gateEl = document.getElementById('gate');
   var gateInput = document.getElementById('gate-input');
   var gateSubmit = document.getElementById('gate-submit');
+  var menuBtn = document.getElementById('menu-btn');
+  var drawerEl = document.getElementById('drawer');
+  var drawerBackdrop = document.getElementById('drawer-backdrop');
+  var drawerList = document.getElementById('drawer-list');
+  var newChatBtn = document.getElementById('new-chat-btn');
 
   function el(tag, opts) {
     opts = opts || {};
@@ -419,6 +516,175 @@
 
   function scrollToBottom() {
     chatScroll.scrollTop = chatScroll.scrollHeight;
+  }
+
+  // ---- chat persistence (localStorage) + multiple conversations ----
+
+  function genId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function loadChatsFromStorage() {
+    try {
+      var raw = localStorage.getItem(CHATS_KEY);
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveChatsToStorage() {
+    try {
+      localStorage.setItem(CHATS_KEY, JSON.stringify(state.chats));
+    } catch (err) {
+      // Most likely quota exceeded (attachments push chats past ~5MB fast).
+      addNote('تعذّر حفظ المحادثة محليًا (المساحة ممتلئة) — احذف محادثات قديمة من القائمة الجانبية.', true);
+    }
+  }
+
+  function getActiveChat() {
+    for (var i = 0; i < state.chats.length; i++) {
+      if (state.chats[i].id === state.activeChatId) return state.chats[i];
+    }
+    return null;
+  }
+
+  function deriveTitle(history) {
+    for (var i = 0; i < history.length; i++) {
+      var msg = history[i];
+      if (msg.role !== 'user') continue;
+      if (typeof msg.content === 'string' && msg.content.trim()) {
+        return msg.content.trim().slice(0, 42);
+      }
+      if (Array.isArray(msg.content)) {
+        var textBlock = msg.content.find(function (b) { return b.type === 'text' && b.text && b.text.trim(); });
+        if (textBlock) return textBlock.text.trim().slice(0, 42);
+        var hasImage = msg.content.some(function (b) { return b.type === 'image' || b.type === 'document'; });
+        if (hasImage) return '📎 مرفق';
+      }
+    }
+    return 'محادثة جديدة';
+  }
+
+  function persistActiveChat() {
+    var chat = getActiveChat();
+    if (!chat) return;
+    chat.history = state.history;
+    chat.updatedAt = Date.now();
+    if (chat.title === 'محادثة جديدة') chat.title = deriveTitle(state.history);
+    saveChatsToStorage();
+    renderDrawerList();
+  }
+
+  function sortedChats() {
+    return state.chats.slice().sort(function (a, b) { return b.updatedAt - a.updatedAt; });
+  }
+
+  function renderDrawerList() {
+    drawerList.innerHTML = '';
+    sortedChats().forEach(function (chat) {
+      var item = el('div', { className: 'drawer-item' + (chat.id === state.activeChatId ? ' active' : '') });
+      item.appendChild(el('span', { className: 'title', text: chat.title || 'محادثة جديدة' }));
+      var delBtn = el('button', { className: 'del', text: '×' });
+      delBtn.setAttribute('aria-label', 'حذف المحادثة');
+      delBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        deleteChat(chat.id);
+      });
+      item.appendChild(delBtn);
+      item.addEventListener('click', function () { switchToChat(chat.id); });
+      drawerList.appendChild(item);
+    });
+  }
+
+  /** Rebuilds the visible chat log from a saved Anthropic message history. */
+  function renderHistoryIntoChat(history) {
+    chatEl.innerHTML = '';
+    history.forEach(function (msg) {
+      if (msg.role === 'user') {
+        if (typeof msg.content === 'string') {
+          if (msg.content.trim()) addUser(msg.content, []);
+          return;
+        }
+        if (Array.isArray(msg.content)) {
+          var text = msg.content.filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('\n');
+          var atts = msg.content
+            .filter(function (b) { return b.type === 'image'; })
+            .map(function (b) { return { isImage: true, mediaType: b.source.media_type, data: b.source.data }; });
+          if (text || atts.length) addUser(text, atts);
+        }
+        return;
+      }
+      if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+        var t = msg.content.filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('\n');
+        if (t.trim()) addAssistant(t);
+      }
+    });
+    scrollToBottom();
+  }
+
+  function switchToChat(id) {
+    var chat = null;
+    for (var i = 0; i < state.chats.length; i++) {
+      if (state.chats[i].id === id) chat = state.chats[i];
+    }
+    if (!chat) return;
+    state.activeChatId = id;
+    state.history = chat.history || [];
+    state.pendingAttachments = [];
+    renderPendingAttachments();
+    renderHistoryIntoChat(state.history);
+    renderDrawerList();
+    closeDrawer();
+  }
+
+  function createNewChat() {
+    var chat = { id: genId(), title: 'محادثة جديدة', updatedAt: Date.now(), history: [] };
+    state.chats.unshift(chat);
+    state.activeChatId = chat.id;
+    state.history = [];
+    state.pendingAttachments = [];
+    renderPendingAttachments();
+    saveChatsToStorage();
+    chatEl.innerHTML = '';
+    renderDrawerList();
+    closeDrawer();
+  }
+
+  function deleteChat(id) {
+    state.chats = state.chats.filter(function (c) { return c.id !== id; });
+    if (state.activeChatId === id) {
+      if (state.chats.length) {
+        switchToChat(sortedChats()[0].id);
+      } else {
+        createNewChat();
+      }
+    }
+    saveChatsToStorage();
+    renderDrawerList();
+  }
+
+  function initChats() {
+    state.chats = loadChatsFromStorage();
+    if (!state.chats.length) {
+      state.chats = [{ id: genId(), title: 'محادثة جديدة', updatedAt: Date.now(), history: [] }];
+      saveChatsToStorage();
+    }
+    var active = sortedChats()[0];
+    state.activeChatId = active.id;
+    state.history = active.history || [];
+    renderHistoryIntoChat(state.history);
+    renderDrawerList();
+  }
+
+  function openDrawer() {
+    drawerEl.classList.add('open');
+    drawerBackdrop.classList.add('open');
+  }
+  function closeDrawer() {
+    drawerEl.classList.remove('open');
+    drawerBackdrop.classList.remove('open');
   }
 
   // ---- minimal markdown renderer (escapes first, only emits our own tags) ----
@@ -607,6 +873,7 @@
 
   function handleResult(data) {
     state.history = data.history || state.history;
+    persistActiveChat();
     if (data.status === 'confirm_required') {
       addToolLog(data.toolName, data.input);
       addConfirmCard(data);
@@ -776,6 +1043,12 @@
   gateInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') gateSubmit.click();
   });
+
+  menuBtn.addEventListener('click', openDrawer);
+  drawerBackdrop.addEventListener('click', closeDrawer);
+  newChatBtn.addEventListener('click', createNewChat);
+
+  initChats();
 
   if (state.token) {
     unlock();
