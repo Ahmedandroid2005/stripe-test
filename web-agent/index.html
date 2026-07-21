@@ -143,6 +143,24 @@
   .msg.error { align-self: center; color: var(--accent-red); font-size: 13px; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); padding: 6px 14px; border-radius: 20px; }
 
   .attach-thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; direction: ltr; }
+
+  .copy-row { display: flex; margin-top: -6px; }
+  .copy-row.align-end { align-self: flex-end; }
+  .copy-row.align-start { align-self: flex-start; }
+  .copy-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
+  }
+  .copy-btn:hover { opacity: 1; background: var(--bg-panel-alt); }
+  .copy-btn svg { width: 14px; height: 14px; }
+  .copy-btn.copied { opacity: 1; color: var(--accent-green); }
   .attach-thumb { width: 52px; height: 52px; border-radius: 10px; overflow: hidden; background: rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; }
   .attach-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .attach-thumb.file { font-size: 9px; color: var(--accent-blue-ink); text-align: center; padding: 4px; font-weight: 700; }
@@ -826,6 +844,33 @@
     return text;
   }
 
+  /** A small "copy to clipboard" button, aligned to match its message bubble. */
+  function makeCopyRow(align, getText) {
+    var row = el('div', { className: 'copy-row align-' + align });
+    var btn = el('button', { className: 'copy-btn' });
+    btn.setAttribute('aria-label', 'نسخ');
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    btn.addEventListener('click', function () {
+      var text = getText();
+      if (!text) return;
+      navigator.clipboard
+        .writeText(text)
+        .then(function () {
+          btn.classList.add('copied');
+          setTimeout(function () {
+            btn.classList.remove('copied');
+          }, 1200);
+        })
+        .catch(function () {
+          addNote('تعذّر النسخ.', true);
+        });
+    });
+    row.appendChild(btn);
+    return row;
+  }
+
   function addUser(text, attachments) {
     var m = el('div', { className: 'msg user' });
     if (text) m.appendChild(document.createTextNode(text));
@@ -845,6 +890,13 @@
       m.appendChild(thumbs);
     }
     chatEl.appendChild(m);
+    if (text) {
+      chatEl.appendChild(
+        makeCopyRow('end', function () {
+          return text;
+        })
+      );
+    }
     scrollToBottom();
   }
 
@@ -852,6 +904,13 @@
     var m = el('div', { className: 'msg assistant' });
     m.innerHTML = renderMarkdown(text || '(بدون رد نصي)');
     chatEl.appendChild(m);
+    if (text) {
+      chatEl.appendChild(
+        makeCopyRow('start', function () {
+          return text;
+        })
+      );
+    }
     scrollToBottom();
   }
 
@@ -872,6 +931,12 @@
       return;
     }
     bubbleEl.innerHTML = renderMarkdown(fullText);
+    bubbleEl.insertAdjacentElement(
+      'afterend',
+      makeCopyRow('start', function () {
+        return fullText;
+      })
+    );
     scrollToBottom();
   }
 
