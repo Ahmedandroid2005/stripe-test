@@ -7,6 +7,43 @@ const { ensureBranch } = require('../lib/github');
 const buildSystemPrompt = require('../lib/systemPrompt');
 
 const MAX_ROUNDS = 6;
+const MAX_ATTACHMENTS = 3;
+const MAX_BASE64_CHARS = 6_000_000; // ~4.5MB raw, keeps us under Vercel's request body cap
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+const DOCUMENT_TYPES = new Set(['application/pdf']);
+
+/**
+ * Builds the Anthropic content-block array for a user turn, mixing text
+ * with any image/PDF attachments the client sent as base64.
+ */
+function buildUserContent(message, attachments) {
+  const list = Array.isArray(attachments) ? attachments : [];
+  if (list.length > MAX_ATTACHMENTS) {
+    throw new Error(`Too many attachments (max ${MAX_ATTACHMENTS} per message).`);
+  }
+
+  const blocks = [];
+  for (const att of list) {
+    const mediaType = att && att.mediaType;
+    const data = att && att.data;
+    if (typeof data !== 'string' || !data || data.length > MAX_BASE64_CHARS) {
+      throw new Error('Attachment is missing data or exceeds the size limit (~4.5MB).');
+    }
+    if (IMAGE_TYPES.has(mediaType)) {
+      blocks.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data } });
+    } else if (DOCUMENT_TYPES.has(mediaType)) {
+      blocks.push({ type: 'document', source: { type: 'base64', media_type: mediaType, data } });
+    } else {
+      throw new Error(`Unsupported attachment type: ${mediaType}. Only images and PDF are supported.`);
+    }
+  }
+
+  if (typeof message === 'string' && message.trim()) {
+    blocks.push({ type: 'text', text: message });
+  }
+
+  return blocks;
+}
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -40,7 +77,7 @@ module.exports = async (req, res) => {
   const client = new Anthropic({ apiKey: anthropicKey });
   const systemPrompt = buildSystemPrompt(owner, repo, branch);
 
-  let { history, message, resume } = req.body || {};
+  let { history, message, resume, attachments } = req.body || {};
   history = Array.isArray(history) ? history : [];
 
   try {
@@ -50,8 +87,14 @@ module.exports = async (req, res) => {
         return res.status(200).json({ status: 'confirm_required', ...outcome.confirmRequired, history });
       }
       history.push({ role: 'user', content: outcome.results });
-    } else if (typeof message === 'string' && message.trim()) {
-      history.push({ role: 'user', content: message });
+    } else if ((typeof message === 'string' && message.trim()) || (Array.isArray(attachments) && attachments.length)) {
+      let userContent;
+      try {
+        userContent = buildUserContent(message, attachments);
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
+      }
+      history.push({ role: 'user', content: userContent });
     } else {
       return res.status(400).json({ error: 'Request must include a non-empty "message" or a "resume".' });
     }

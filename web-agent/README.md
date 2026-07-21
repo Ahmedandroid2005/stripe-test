@@ -40,8 +40,15 @@ the exact command and won't run it until you tap **موافقة وتنفيذ**.
 3. Add the environment variables above.
 4. Deploy. Open the resulting URL on your phone, enter your `AGENT_ACCESS_TOKEN` when prompted.
 
+## UI
+
+- Chat-style interface with markdown rendering (code blocks, inline code, bold, lists) for the model's replies.
+- Attach up to 3 images (PNG/JPEG/WEBP/GIF) or PDFs per message (📎 button, 4MB each) — sent to Claude as vision/document input alongside your text.
+- Mutating tool calls still always pause for an explicit approve/deny before touching anything.
+
 ## Real limitations of this version (read before relying on it)
 
+- **Attachments bloat the conversation history.** Once you attach an image, its base64 data is resent with every later message in that conversation (the server is stateless — the client resends full history each turn). Long conversations with several attachments can eventually hit Vercel's ~4.5MB request body limit; start a fresh conversation if that happens.
 - **Not truly "only you" just because of the token.** Treat `AGENT_ACCESS_TOKEN` like a password — anyone who has it can commit to your repo and run commands (in the sandbox) using your API budget. Don't share the URL casually, and rotate the token (change the env var, redeploy) if you ever suspect it leaked.
 - **`run_command` can't install-then-test across two separate calls.** Each call gets a fresh sandbox. Chain steps in one command: `npm install && npm test`, not two separate tool calls.
 - **Serverless execution time is capped** (`vercel.json` sets 60s, the Vercel Hobby plan maximum). A long multi-step request may stop mid-way with "stopped after N tool rounds" — send a follow-up message to continue; already-completed commits are not lost.

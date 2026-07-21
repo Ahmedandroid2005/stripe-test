@@ -6,72 +6,156 @@
 <title>code-agent — ويب</title>
 <style>
   :root {
-    --bg: #0a0b12;
-    --bg-panel: #12131c;
-    --bg-panel-alt: #191a29;
-    --border: rgba(124, 140, 255, 0.22);
-    --text: #e7e8f2;
+    --bg: #0e0f16;
+    --bg-panel: #15161f;
+    --bg-panel-alt: #1c1e2a;
+    --bg-input: #1a1c27;
+    --border: rgba(148, 163, 255, 0.16);
+    --border-strong: rgba(148, 163, 255, 0.28);
+    --text: #ececf3;
     --text-muted: #8b8fa3;
     --accent-blue: #6d8cff;
+    --accent-blue-ink: #0a0b12;
     --accent-orange: #f2b155;
     --accent-green: #4ade80;
     --accent-red: #f87171;
     --accent-yellow: #f5cc4f;
+    --shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.55);
   }
+
   * { box-sizing: border-box; }
+
   html, body {
     height: 100%;
     margin: 0;
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, "Segoe UI", "Tahoma", Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     display: flex;
     flex-direction: column;
+    height: 100dvh;
   }
 
+  a { color: var(--accent-blue); }
+
+  /* ---- header ---- */
   header {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 14px 16px;
+    padding: 14px 18px;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-panel);
+    background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
+    backdrop-filter: blur(10px);
     flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
   }
-  header .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent-green); flex-shrink: 0; }
-  header h1 { font-size: 15px; margin: 0; font-weight: 700; }
-  header .sub { font-size: 12px; color: var(--text-muted); margin-inline-start: auto; direction: ltr; text-align: left; }
+  header .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); flex-shrink: 0;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-green) 20%, transparent);
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+  header .sub { font-size: 12px; color: var(--text-muted); margin-inline-start: auto; direction: ltr; text-align: left; font-family: ui-monospace, monospace; }
 
+  /* ---- message column ---- */
   main {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .column {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 20px 16px 28px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
   }
 
-  .msg { max-width: 88%; line-height: 1.65; font-size: 15px; }
-  .msg.user { align-self: flex-end; background: var(--accent-blue); color: #0a0b12; padding: 10px 14px; border-radius: 14px 14px 3px 14px; font-weight: 500; }
-  .msg.assistant { align-self: flex-start; padding: 2px 2px; color: var(--text); white-space: pre-wrap; }
-  .msg.note { align-self: center; color: var(--accent-yellow); font-size: 13px; background: rgba(245,204,79,0.08); border: 1px solid rgba(245,204,79,0.25); padding: 6px 12px; border-radius: 8px; }
-  .msg.error { align-self: center; color: var(--accent-red); font-size: 13px; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); padding: 6px 12px; border-radius: 8px; }
+  .msg { max-width: 88%; line-height: 1.7; font-size: 15.5px; }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--accent-blue);
+    color: var(--accent-blue-ink);
+    padding: 11px 15px;
+    border-radius: 18px 18px 4px 18px;
+    font-weight: 500;
+    box-shadow: var(--shadow);
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    color: var(--text);
+    max-width: 96%;
+  }
+  .msg.assistant p { margin: 0 0 10px; }
+  .msg.assistant p:last-child { margin-bottom: 0; }
+  .msg.assistant ul { margin: 6px 0 10px; padding-inline-start: 22px; }
+  .msg.assistant li { margin: 3px 0; }
+  .msg.assistant h3, .msg.assistant h4 { margin: 14px 0 6px; font-weight: 700; }
+  .msg.assistant .inline-code {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    background: var(--bg-panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 0.9em;
+    direction: ltr;
+    unicode-bidi: embed;
+  }
+  .msg.assistant .code-block {
+    direction: ltr;
+    text-align: left;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .msg.assistant .code-block code { white-space: pre; }
 
-  .tool-log { align-self: flex-start; direction: ltr; text-align: left; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 12.5px; color: var(--accent-orange); }
+  .msg.note { align-self: center; color: var(--accent-yellow); font-size: 13px; background: rgba(245,204,79,0.08); border: 1px solid rgba(245,204,79,0.25); padding: 6px 14px; border-radius: 20px; }
+  .msg.error { align-self: center; color: var(--accent-red); font-size: 13px; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); padding: 6px 14px; border-radius: 20px; }
 
+  .attach-thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; direction: ltr; }
+  .attach-thumb { width: 52px; height: 52px; border-radius: 10px; overflow: hidden; background: rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; }
+  .attach-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .attach-thumb.file { font-size: 9px; color: var(--accent-blue-ink); text-align: center; padding: 4px; font-weight: 700; }
+
+  .tool-log {
+    align-self: flex-start;
+    direction: ltr;
+    text-align: left;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    color: var(--accent-orange);
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .tool-log .args { color: var(--text-muted); }
+
+  /* ---- confirm card ---- */
   .card {
     align-self: stretch;
     background: var(--bg-panel);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 14px;
     overflow: hidden;
     direction: ltr;
     text-align: left;
+    box-shadow: var(--shadow);
   }
   .card .card-head {
-    padding: 9px 12px;
+    padding: 10px 14px;
     background: var(--bg-panel-alt);
     font-family: ui-monospace, "SF Mono", Consolas, monospace;
     font-size: 12.5px;
@@ -79,7 +163,7 @@
     border-bottom: 1px solid var(--border);
   }
   .card .card-body {
-    padding: 10px 12px;
+    padding: 12px 14px;
     font-family: ui-monospace, "SF Mono", Consolas, monospace;
     font-size: 12.5px;
     line-height: 1.6;
@@ -92,16 +176,11 @@
   .diff-row.context { color: var(--text-muted); }
   .cmd-line { color: var(--accent-yellow); }
 
-  .card .card-actions {
-    display: flex;
-    gap: 8px;
-    padding: 10px 12px;
-    border-top: 1px solid var(--border);
-  }
+  .card .card-actions { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); }
   .card .card-actions button {
     flex: 1;
-    padding: 9px 10px;
-    border-radius: 7px;
+    padding: 10px 10px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     font-size: 13.5px;
     font-weight: 700;
@@ -110,84 +189,141 @@
   .btn-approve { background: var(--accent-green); color: #0a0b12; border-color: var(--accent-green); }
   .btn-deny { background: transparent; color: var(--accent-red); }
   .card .card-actions button:disabled { opacity: 0.5; cursor: default; }
-  .card .card-actions button:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+  .card .card-actions button:focus-visible, footer button:focus-visible, footer textarea:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
 
-  .thinking { align-self: flex-start; color: var(--text-muted); font-size: 13.5px; }
+  /* ---- typing indicator ---- */
+  .typing { align-self: flex-start; display: flex; gap: 4px; padding: 6px 2px; }
+  .typing span {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted);
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .typing span { animation: none; opacity: 0.6; }
+  }
 
+  /* ---- footer / composer ---- */
   footer {
     flex-shrink: 0;
-    border-top: 1px solid var(--border);
-    background: var(--bg-panel);
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--bg) 60%, transparent);
+    padding: 8px 14px calc(14px + env(safe-area-inset-bottom));
+  }
+  .composer-wrap { max-width: 760px; margin: 0 auto; }
+
+  .pending-attachments {
     display: flex;
     gap: 8px;
-    align-items: flex-end;
+    padding: 0 4px 8px;
+    direction: ltr;
   }
-  footer textarea {
-    flex: 1;
-    resize: none;
-    background: var(--bg);
-    color: var(--text);
+  .pending-thumb {
+    position: relative;
+    width: 52px; height: 52px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-panel-alt);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 12px;
-    font-size: 15px;
-    font-family: inherit;
-    max-height: 120px;
   }
-  footer textarea:focus-visible, footer button:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
-  footer button {
-    background: var(--accent-blue);
-    color: #0a0b12;
+  .pending-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pending-thumb .filelabel { font-size: 8.5px; color: var(--text-muted); text-align: center; padding: 4px 2px; word-break: break-all; }
+  .pending-thumb .remove {
+    position: absolute; top: 2px; right: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: rgba(10,11,18,0.85); color: #fff;
+    border: none; font-size: 11px; line-height: 16px; text-align: center; padding: 0; cursor: pointer;
+  }
+
+  .composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-strong);
+    border-radius: 26px;
+    padding: 6px 6px 6px 10px;
+    box-shadow: var(--shadow);
+  }
+  .icon-btn {
+    flex-shrink: 0;
+    width: 38px; height: 38px;
+    border-radius: 50%;
     border: none;
-    border-radius: 10px;
-    padding: 0 18px;
-    height: 42px;
-    font-weight: 700;
-    font-size: 14px;
+    background: transparent;
+    color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
     cursor: pointer;
   }
-  footer button:disabled { opacity: 0.5; }
+  .icon-btn:hover { background: var(--bg-panel-alt); color: var(--text); }
+  .icon-btn svg { width: 20px; height: 20px; }
 
+  .composer textarea {
+    flex: 1;
+    resize: none;
+    background: transparent;
+    color: var(--text);
+    border: none;
+    padding: 9px 4px;
+    font-size: 16px;
+    font-family: inherit;
+    max-height: 140px;
+    line-height: 1.4;
+  }
+  .composer textarea:focus { outline: none; }
+  .composer textarea::placeholder { color: var(--text-muted); }
+
+  .send-btn {
+    flex-shrink: 0;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent-blue);
+    color: var(--accent-blue-ink);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .send-btn:disabled { opacity: 0.35; cursor: default; }
+  .send-btn svg { width: 18px; height: 18px; transform: rotate(90deg); }
+
+  /* ---- token gate ---- */
   .gate {
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background: rgba(10, 11, 18, 0.92);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; z-index: 10;
   }
   .gate-card {
     background: var(--bg-panel);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 22px;
+    border-radius: 18px;
+    padding: 26px;
     max-width: 340px;
     width: 100%;
+    box-shadow: var(--shadow);
   }
-  .gate-card h2 { font-size: 16px; margin: 0 0 8px; }
-  .gate-card p { font-size: 13.5px; color: var(--text-muted); margin: 0 0 14px; line-height: 1.6; }
+  .gate-card h2 { font-size: 17px; margin: 0 0 8px; }
+  .gate-card p { font-size: 13.5px; color: var(--text-muted); margin: 0 0 16px; line-height: 1.6; }
   .gate-card input {
     width: 100%;
     background: var(--bg);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     color: var(--text);
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 15px;
-    margin-bottom: 10px;
+    border-radius: 10px;
+    padding: 11px 13px;
+    font-size: 16px;
+    margin-bottom: 12px;
     direction: ltr;
   }
   .gate-card input:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
   .gate-card button {
     width: 100%;
     background: var(--accent-blue);
-    color: #0a0b12;
+    color: var(--accent-blue-ink);
     border: none;
-    border-radius: 8px;
-    padding: 11px;
+    border-radius: 10px;
+    padding: 12px;
     font-weight: 700;
     font-size: 14.5px;
     cursor: pointer;
@@ -211,26 +347,46 @@
     <span class="sub" id="header-sub">web</span>
   </header>
 
-  <main id="chat"></main>
+  <main id="chat-scroll"><div class="column" id="chat"></div></main>
 
   <footer>
-    <textarea id="input" rows="1" placeholder="اكتب طلبك..." disabled></textarea>
-    <button id="send" disabled>إرسال</button>
+    <div class="composer-wrap">
+      <div class="pending-attachments" id="pending-attachments" hidden></div>
+      <div class="composer">
+        <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf" multiple hidden />
+        <button class="icon-btn" id="attach-btn" type="button" aria-label="إرفاق ملف">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a1.5 1.5 0 0 1-2.12-2.12l8.49-8.48"/></svg>
+        </button>
+        <textarea id="input" rows="1" placeholder="اكتب طلبك..." disabled></textarea>
+        <button class="send-btn" id="send" disabled aria-label="إرسال">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </div>
   </footer>
 
 <script>
 (function () {
   'use strict';
 
+  var MAX_ATTACHMENTS = 3;
+  var MAX_FILE_BYTES = 4 * 1024 * 1024;
+  var ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf'];
+
   var state = {
     token: localStorage.getItem('codeAgentToken') || '',
     history: [],
     busy: false,
+    pendingAttachments: [], // {mediaType, data, name, isImage}
   };
 
   var chatEl = document.getElementById('chat');
+  var chatScroll = document.getElementById('chat-scroll');
   var inputEl = document.getElementById('input');
   var sendBtn = document.getElementById('send');
+  var attachBtn = document.getElementById('attach-btn');
+  var fileInput = document.getElementById('file-input');
+  var pendingWrap = document.getElementById('pending-attachments');
   var gateEl = document.getElementById('gate');
   var gateInput = document.getElementById('gate-input');
   var gateSubmit = document.getElementById('gate-submit');
@@ -244,17 +400,63 @@
   }
 
   function scrollToBottom() {
-    chatEl.scrollTop = chatEl.scrollHeight;
+    chatScroll.scrollTop = chatScroll.scrollHeight;
   }
 
-  function addUser(text) {
-    var m = el('div', { className: 'msg user', text: text });
+  // ---- minimal markdown renderer (escapes first, only emits our own tags) ----
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function renderMarkdown(raw) {
+    var blocks = [];
+    var text = raw.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, function (_, lang, code) {
+      var idx = blocks.length;
+      blocks.push('<pre class="code-block"><code>' + escapeHtml(code.replace(/\n$/, '')) + '</code></pre>');
+      return '' + idx + '';
+    });
+
+    text = escapeHtml(text);
+    text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+    text = text.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+    text = text.replace(/(^|\n)[-*] (.+)/g, '$1<li>$2</li>');
+    text = text.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function (m) { return '<ul>' + m + '</ul>'; });
+    text = text.split(/\n{2,}/).map(function (para) {
+      if (/^<(ul|h3|h4)/.test(para.trim())) return para;
+      return '<p>' + para.replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+
+    text = text.replace(/(\d+)/g, function (_, idx) { return blocks[Number(idx)]; });
+    return text;
+  }
+
+  function addUser(text, attachments) {
+    var m = el('div', { className: 'msg user' });
+    if (text) m.appendChild(document.createTextNode(text));
+    if (attachments && attachments.length) {
+      var thumbs = el('div', { className: 'attach-thumbs' });
+      attachments.forEach(function (a) {
+        var t = el('div', { className: 'attach-thumb' + (a.isImage ? '' : ' file') });
+        if (a.isImage) {
+          var img = document.createElement('img');
+          img.src = 'data:' + a.mediaType + ';base64,' + a.data;
+          t.appendChild(img);
+        } else {
+          t.textContent = 'PDF';
+        }
+        thumbs.appendChild(t);
+      });
+      m.appendChild(thumbs);
+    }
     chatEl.appendChild(m);
     scrollToBottom();
   }
 
   function addAssistant(text) {
-    var m = el('div', { className: 'msg assistant', text: text || '(بدون رد نصي)' });
+    var m = el('div', { className: 'msg assistant' });
+    m.innerHTML = renderMarkdown(text || '(بدون رد نصي)');
     chatEl.appendChild(m);
     scrollToBottom();
   }
@@ -266,23 +468,28 @@
   }
 
   function addToolLog(name, input) {
-    var m = el('div', { className: 'tool-log', text: '⏺ ' + name + ' ' + JSON.stringify(input) });
+    var m = el('div', { className: 'tool-log' });
+    m.appendChild(document.createTextNode('⏺ ' + name));
+    var args = el('span', { className: 'args', text: JSON.stringify(input) });
+    m.appendChild(args);
     chatEl.appendChild(m);
     scrollToBottom();
   }
 
-  var thinkingEl = null;
-  function showThinking() {
-    thinkingEl = el('div', { className: 'thinking', text: '...جاري التفكير' });
-    chatEl.appendChild(thinkingEl);
+  var typingEl = null;
+  function showTyping() {
+    typingEl = el('div', { className: 'typing' });
+    typingEl.appendChild(el('span'));
+    typingEl.appendChild(el('span'));
+    typingEl.appendChild(el('span'));
+    chatEl.appendChild(typingEl);
     scrollToBottom();
   }
-  function hideThinking() {
-    if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
-    thinkingEl = null;
+  function hideTyping() {
+    if (typingEl && typingEl.parentNode) typingEl.parentNode.removeChild(typingEl);
+    typingEl = null;
   }
 
-  // Minimal LCS line diff, capped for very large files to keep the UI responsive.
   function diffLines(oldStr, newStr) {
     var a = (oldStr || '').split('\n');
     var b = (newStr || '').split('\n');
@@ -325,8 +532,7 @@
       var capped = rows.slice(0, 400);
       capped.forEach(function (r) {
         var prefix = r.type === 'add' ? '+ ' : r.type === 'remove' ? '- ' : '  ';
-        var row = el('div', { className: 'diff-row ' + r.type, text: prefix + r.text });
-        body.appendChild(row);
+        body.appendChild(el('div', { className: 'diff-row ' + r.type, text: prefix + r.text }));
       });
       if (rows.length > 400) body.appendChild(el('div', { className: 'diff-row context', text: '[...' + (rows.length - 400) + ' سطر إضافي]' }));
     } else if (pending.preview.kind === 'command') {
@@ -362,46 +568,49 @@
     state.busy = busy;
     inputEl.disabled = busy || !state.token;
     sendBtn.disabled = busy || !state.token;
+    attachBtn.disabled = busy || !state.token;
   }
 
   async function callApi(payload) {
     var res = await fetch('/api/agent', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + state.token,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.token },
       body: JSON.stringify(payload),
     });
     var data = await res.json().catch(function () { return { error: 'استجابة غير صالحة من الخادم.' }; });
-    if (!res.ok) {
-      throw new Error(data.error || ('HTTP ' + res.status));
-    }
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     return data;
   }
 
   function handleResult(data) {
     state.history = data.history || state.history;
-
     if (data.status === 'confirm_required') {
       addToolLog(data.toolName, data.input);
       addConfirmCard(data);
       return;
     }
-
     addAssistant(data.reply);
   }
 
   async function send(text) {
+    var attachmentsForSend = state.pendingAttachments.map(function (a) {
+      return { mediaType: a.mediaType, data: a.data };
+    });
+    var attachmentsForDisplay = state.pendingAttachments.slice();
+    state.pendingAttachments = [];
+    renderPendingAttachments();
+
     setBusy(true);
-    addUser(text);
-    showThinking();
+    addUser(text, attachmentsForDisplay);
+    showTyping();
     try {
-      var data = await callApi({ message: text, history: state.history });
-      hideThinking();
+      var payload = { message: text, history: state.history };
+      if (attachmentsForSend.length) payload.attachments = attachmentsForSend;
+      var data = await callApi(payload);
+      hideTyping();
       handleResult(data);
     } catch (err) {
-      hideThinking();
+      hideTyping();
       addNote(err.message, true);
     } finally {
       setBusy(false);
@@ -411,7 +620,7 @@
 
   async function resume(pending, approved) {
     setBusy(true);
-    showThinking();
+    showTyping();
     try {
       var data = await callApi({
         history: state.history,
@@ -424,20 +633,92 @@
           completedResults: pending.completedResults,
         },
       });
-      hideThinking();
+      hideTyping();
       addNote(approved ? 'تم التنفيذ.' : 'تم الرفض.', false);
       handleResult(data);
     } catch (err) {
-      hideThinking();
+      hideTyping();
       addNote(err.message, true);
     } finally {
       setBusy(false);
     }
   }
 
+  // ---- attachments ----
+  function renderPendingAttachments() {
+    pendingWrap.innerHTML = '';
+    if (!state.pendingAttachments.length) { pendingWrap.hidden = true; return; }
+    pendingWrap.hidden = false;
+    state.pendingAttachments.forEach(function (a, idx) {
+      var thumb = el('div', { className: 'pending-thumb' });
+      if (a.isImage) {
+        var img = document.createElement('img');
+        img.src = 'data:' + a.mediaType + ';base64,' + a.data;
+        thumb.appendChild(img);
+      } else {
+        thumb.appendChild(el('div', { className: 'filelabel', text: a.name || 'PDF' }));
+      }
+      var removeBtn = el('button', { className: 'remove', text: '×' });
+      removeBtn.addEventListener('click', function () {
+        state.pendingAttachments.splice(idx, 1);
+        renderPendingAttachments();
+      });
+      thumb.appendChild(removeBtn);
+      pendingWrap.appendChild(thumb);
+    });
+  }
+
+  function readFileAsBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var result = reader.result; // "data:<type>;base64,<data>"
+        var commaIdx = result.indexOf(',');
+        resolve(result.slice(commaIdx + 1));
+      };
+      reader.onerror = function () { reject(new Error('تعذّرت قراءة الملف.')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  attachBtn.addEventListener('click', function () { fileInput.click(); });
+
+  fileInput.addEventListener('change', async function () {
+    var files = Array.prototype.slice.call(fileInput.files || []);
+    fileInput.value = '';
+
+    for (var idx = 0; idx < files.length; idx++) {
+      var file = files[idx];
+      if (state.pendingAttachments.length >= MAX_ATTACHMENTS) {
+        addNote('أقصى عدد مرفقات لكل رسالة هو ' + MAX_ATTACHMENTS + '.', true);
+        break;
+      }
+      if (ALLOWED_TYPES.indexOf(file.type) === -1) {
+        addNote('نوع الملف غير مدعوم: ' + file.name + ' (فقط صور PNG/JPEG/WEBP/GIF أو PDF).', true);
+        continue;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        addNote('الملف كبير جدًا: ' + file.name + ' (الحد الأقصى 4MB).', true);
+        continue;
+      }
+      try {
+        var data = await readFileAsBase64(file);
+        state.pendingAttachments.push({
+          mediaType: file.type,
+          data: data,
+          name: file.name,
+          isImage: file.type.indexOf('image/') === 0,
+        });
+      } catch (err) {
+        addNote(err.message, true);
+      }
+    }
+    renderPendingAttachments();
+  });
+
   sendBtn.addEventListener('click', function () {
     var text = inputEl.value.trim();
-    if (!text || state.busy) return;
+    if ((!text && !state.pendingAttachments.length) || state.busy) return;
     inputEl.value = '';
     inputEl.style.height = 'auto';
     send(text);
@@ -452,7 +733,7 @@
 
   inputEl.addEventListener('input', function () {
     inputEl.style.height = 'auto';
-    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
   });
 
   function unlock() {
