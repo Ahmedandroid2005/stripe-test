@@ -247,16 +247,18 @@
   }
   .icon-btn {
     flex-shrink: 0;
-    width: 38px; height: 38px;
+    width: 36px; height: 36px;
     border-radius: 50%;
     border: none;
-    background: transparent;
+    background: var(--bg-panel-alt);
     color: var(--text-muted);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
+    transition: background 0.15s, color 0.15s;
   }
-  .icon-btn:hover { background: var(--bg-panel-alt); color: var(--text); }
-  .icon-btn svg { width: 20px; height: 20px; }
+  .icon-btn:hover { background: var(--border-strong); color: var(--text); }
+  .icon-btn:disabled { opacity: 0.4; cursor: default; }
+  .icon-btn svg { width: 18px; height: 18px; }
 
   .composer textarea {
     flex: 1;
@@ -275,17 +277,18 @@
 
   .send-btn {
     flex-shrink: 0;
-    width: 38px; height: 38px;
+    width: 36px; height: 36px;
     border-radius: 50%;
     border: none;
     background: var(--accent-blue);
     color: var(--accent-blue-ink);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: background 0.15s, opacity 0.15s, transform 0.1s;
   }
-  .send-btn:disabled { opacity: 0.35; cursor: default; }
-  .send-btn svg { width: 18px; height: 18px; transform: rotate(90deg); }
+  .send-btn:active:not(:disabled) { transform: scale(0.93); }
+  .send-btn:disabled { background: var(--bg-panel-alt); color: var(--text-muted); opacity: 1; cursor: default; }
+  .send-btn svg { width: 17px; height: 17px; transform: rotate(-90deg); }
 
   /* ---- token gate ---- */
   .gate {
@@ -567,8 +570,13 @@
   function setBusy(busy) {
     state.busy = busy;
     inputEl.disabled = busy || !state.token;
-    sendBtn.disabled = busy || !state.token;
     attachBtn.disabled = busy || !state.token;
+    updateSendState();
+  }
+
+  function updateSendState() {
+    var hasContent = inputEl.value.trim().length > 0 || state.pendingAttachments.length > 0;
+    sendBtn.disabled = state.busy || !state.token || !hasContent;
   }
 
   async function callApi(payload) {
@@ -647,8 +655,8 @@
   // ---- attachments ----
   function renderPendingAttachments() {
     pendingWrap.innerHTML = '';
-    if (!state.pendingAttachments.length) { pendingWrap.hidden = true; return; }
-    pendingWrap.hidden = false;
+    pendingWrap.hidden = !state.pendingAttachments.length;
+    updateSendState();
     state.pendingAttachments.forEach(function (a, idx) {
       var thumb = el('div', { className: 'pending-thumb' });
       if (a.isImage) {
@@ -732,6 +740,7 @@
   });
 
   inputEl.addEventListener('input', function () {
+    updateSendState();
     inputEl.style.height = 'auto';
     inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
   });
