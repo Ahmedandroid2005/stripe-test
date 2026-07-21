@@ -67,7 +67,7 @@ const toolSchemas = [
   {
     name: 'write_file',
     description:
-      'Create or overwrite a file. Commits directly to the configured branch as a real git commit. Requires user confirmation.',
+      'Create or overwrite a file. Commits directly to the configured branch as a real git commit, automatically creating that branch first if it does not exist yet — no separate branch-creation step is needed. Requires user confirmation.',
     input_schema: {
       type: 'object',
       properties: {
@@ -80,7 +80,7 @@ const toolSchemas = [
   {
     name: 'edit_file',
     description:
-      'Replace one exact, unique occurrence of oldText with newText in an existing file, then commit. Requires user confirmation.',
+      'Replace one exact, unique occurrence of oldText with newText in an existing file, then commit (automatically creating the configured branch first if it does not exist yet). Requires user confirmation.',
     input_schema: {
       type: 'object',
       properties: {
