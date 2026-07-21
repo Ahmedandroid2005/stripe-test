@@ -56,14 +56,21 @@ module.exports = async (req, res) => {
     return res.status(err.status || 401).json({ error: err.message });
   }
 
+  let { history, message, resume, attachments, repoConfig } = req.body || {};
+  repoConfig = repoConfig && typeof repoConfig === 'object' ? repoConfig : {};
+
   // .trim() guards against a trailing newline/space sneaking in when a
   // secret is copy-pasted from a mobile notes app into Vercel's env var UI —
   // that stray whitespace otherwise breaks the outgoing HTTP headers and
   // surfaces as an opaque "Connection error." with no useful detail.
-  const owner = (process.env.GITHUB_OWNER || '').trim();
-  const repo = (process.env.GITHUB_REPO || '').trim();
-  const branch = (process.env.GITHUB_BRANCH || 'code-agent').trim();
-  const baseBranch = (process.env.GITHUB_BASE_BRANCH || 'main').trim();
+  //
+  // owner/repo/branch are NOT secret, so the client may override the
+  // server's env-var defaults per request (the UI's repo switcher) — only
+  // the GitHub token and Anthropic key stay strictly server-side.
+  const owner = String(repoConfig.owner || process.env.GITHUB_OWNER || '').trim();
+  const repo = String(repoConfig.repo || process.env.GITHUB_REPO || '').trim();
+  const branch = String(repoConfig.branch || process.env.GITHUB_BRANCH || 'code-agent').trim();
+  const baseBranch = String(repoConfig.baseBranch || process.env.GITHUB_BASE_BRANCH || 'main').trim();
   const githubToken = (process.env.GITHUB_TOKEN || '').trim();
   const anthropicKey = (process.env.ANTHROPIC_API_KEY || '').trim();
 
@@ -76,8 +83,6 @@ module.exports = async (req, res) => {
   const ctx = { token: githubToken, owner, repo, branch, baseBranch };
   const client = new Anthropic({ apiKey: anthropicKey });
   const systemPrompt = buildSystemPrompt(owner, repo, branch);
-
-  let { history, message, resume, attachments } = req.body || {};
   history = Array.isArray(history) ? history : [];
 
   try {

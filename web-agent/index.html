@@ -423,6 +423,39 @@
     cursor: pointer;
   }
   .drawer-item .del:hover { background: rgba(220,38,38,0.12); color: var(--accent-red); }
+
+  .drawer-settings {
+    border-top: 1px solid var(--border);
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+    flex-shrink: 0;
+  }
+  .drawer-settings .ds-label { font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
+  .drawer-settings input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    margin-bottom: 6px;
+    direction: ltr;
+    text-align: left;
+  }
+  .drawer-settings input:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 1px; }
+  .ds-save-btn {
+    width: 100%;
+    background: var(--bg-panel-alt);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 9px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 2px;
+  }
+  .ds-save-btn:hover { background: var(--border-strong); }
 </style>
 </head>
 <body>
@@ -455,6 +488,13 @@
       </button>
     </div>
     <div class="drawer-list" id="drawer-list"></div>
+    <div class="drawer-settings">
+      <div class="ds-label">المستودع المتصل به</div>
+      <input type="text" id="repo-owner" placeholder="Owner، مثال: Ahmedandroid2005" autocapitalize="off" autocorrect="off" />
+      <input type="text" id="repo-name" placeholder="Repo، مثال: stripe-test" autocapitalize="off" autocorrect="off" />
+      <input type="text" id="repo-branch" placeholder="Branch (اختياري، افتراضي code-agent)" autocapitalize="off" autocorrect="off" />
+      <button class="ds-save-btn" id="repo-save-btn" type="button">حفظ إعدادات المستودع</button>
+    </div>
   </aside>
 
   <main id="chat-scroll"><div class="column" id="chat"></div></main>
@@ -484,6 +524,17 @@
   var ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf'];
 
   var CHATS_KEY = 'nexusChats';
+  var REPO_KEY = 'nexusRepoConfig';
+
+  function loadRepoConfig() {
+    try {
+      var raw = localStorage.getItem(REPO_KEY);
+      var parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
 
   var state = {
     token: localStorage.getItem('codeAgentToken') || '',
@@ -492,6 +543,7 @@
     pendingAttachments: [], // {mediaType, data, name, isImage}
     chats: [],
     activeChatId: null,
+    repoConfig: loadRepoConfig(), // {owner, repo, branch} — empty fields fall back to server env vars
   };
 
   var chatEl = document.getElementById('chat');
@@ -509,6 +561,10 @@
   var drawerBackdrop = document.getElementById('drawer-backdrop');
   var drawerList = document.getElementById('drawer-list');
   var newChatBtn = document.getElementById('new-chat-btn');
+  var repoOwnerInput = document.getElementById('repo-owner');
+  var repoNameInput = document.getElementById('repo-name');
+  var repoBranchInput = document.getElementById('repo-branch');
+  var repoSaveBtn = document.getElementById('repo-save-btn');
 
   function el(tag, opts) {
     opts = opts || {};
@@ -910,6 +966,9 @@
   }
 
   async function callApi(payload) {
+    if (state.repoConfig && (state.repoConfig.owner || state.repoConfig.repo || state.repoConfig.branch)) {
+      payload.repoConfig = state.repoConfig;
+    }
     var res = await fetch('/api/agent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.token },
@@ -1096,6 +1155,33 @@
   menuBtn.addEventListener('click', openDrawer);
   drawerBackdrop.addEventListener('click', closeDrawer);
   newChatBtn.addEventListener('click', createNewChat);
+
+  repoOwnerInput.value = state.repoConfig.owner || '';
+  repoNameInput.value = state.repoConfig.repo || '';
+  repoBranchInput.value = state.repoConfig.branch || '';
+
+  repoSaveBtn.addEventListener('click', function () {
+    var owner = repoOwnerInput.value.trim();
+    var repo = repoNameInput.value.trim();
+    var branch = repoBranchInput.value.trim();
+    var cfg = {};
+    if (owner) cfg.owner = owner;
+    if (repo) cfg.repo = repo;
+    if (branch) cfg.branch = branch;
+    state.repoConfig = cfg;
+    try {
+      localStorage.setItem(REPO_KEY, JSON.stringify(cfg));
+    } catch {
+      // non-fatal — the setting just won't survive a refresh
+    }
+    addNote(
+      Object.keys(cfg).length
+        ? 'تم حفظ إعدادات المستودع. يفضّل تبدأ محادثة جديدة قبل ما تكمل.'
+        : 'تم مسح إعدادات المستودع المخصصة — راجع لإعدادات Vercel الافتراضية.',
+      false
+    );
+    closeDrawer();
+  });
 
   initChats();
 
