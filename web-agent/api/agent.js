@@ -3,6 +3,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { checkAuth } = require('../lib/auth');
 const { toolSchemas, execute, isMutating, previewWriteFile, previewEditFile } = require('../lib/tools');
+const { ensureBranch } = require('../lib/github');
 const buildSystemPrompt = require('../lib/systemPrompt');
 
 const MAX_ROUNDS = 6;
@@ -166,6 +167,17 @@ async function processBlocks(blocks, resultsSoFar, ctx) {
 }
 
 async function buildPreview(name, input, ctx) {
+  if (name === 'write_file' || name === 'edit_file') {
+    // Branch creation is a no-op if it already exists, and creates an empty
+    // ref (no content change) otherwise — safe to do before confirmation.
+    // Doing it here (not just inside the real write) matters: without it,
+    // the very first write on a not-yet-created branch would diff the
+    // proposed content against "file doesn't exist" instead of the real
+    // current content inherited from the base branch, showing a misleading
+    // all-green diff that looks like a fresh file instead of an overwrite.
+    await ensureBranch(ctx.token, ctx.owner, ctx.repo, ctx.branch, ctx.baseBranch);
+  }
+
   if (name === 'write_file') {
     const p = await previewWriteFile(input, ctx);
     return { kind: 'diff', path: p.path, oldContent: p.oldContent, newContent: p.newContent };
