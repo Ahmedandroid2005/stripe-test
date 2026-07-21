@@ -149,16 +149,21 @@
 
   .tool-log {
     align-self: flex-start;
-    direction: ltr;
-    text-align: left;
-    font-family: ui-monospace, "SF Mono", Consolas, monospace;
-    font-size: 12.5px;
+    direction: rtl;
+    text-align: right;
+    font-size: 13.5px;
     color: var(--accent-orange);
     display: flex;
     align-items: baseline;
     gap: 6px;
   }
-  .tool-log .args { color: var(--text-muted); }
+  .tool-log .detail {
+    color: var(--text-muted);
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    direction: ltr;
+    unicode-bidi: embed;
+  }
 
   /* ---- confirm card ---- */
   .card {
@@ -876,11 +881,39 @@
     scrollToBottom();
   }
 
+  /** Turns a raw (tool name, input) pair into a plain-Arabic description. */
+  function describeToolCall(name, input) {
+    input = input || {};
+    switch (name) {
+      case 'read_file':
+        return { label: '📄 قراءة الملف', detail: input.path };
+      case 'list_files':
+        return { label: '📂 استعراض الملفات', detail: input.pattern || 'كل ملفات المشروع' };
+      case 'search_code':
+        return { label: '🔍 البحث في الكود عن', detail: input.query };
+      case 'write_file':
+        return { label: '📝 كتابة الملف', detail: input.path };
+      case 'edit_file':
+        return { label: '✏️ تعديل الملف', detail: input.path };
+      case 'run_command':
+        return { label: '⚙️ تشغيل أمر', detail: input.command };
+      case 'list_repos':
+        return { label: '📚 عرض كل المستودعات المتاحة', detail: '' };
+      case 'switch_repo':
+        return {
+          label: '🔀 الانتقال إلى مستودع',
+          detail: input.owner && input.repo ? input.owner + '/' + input.repo + (input.branch ? ' (' + input.branch + ')' : '') : '',
+        };
+      default:
+        return { label: '⏺ ' + name, detail: JSON.stringify(input) };
+    }
+  }
+
   function addToolLog(name, input) {
+    var described = describeToolCall(name, input);
     var m = el('div', { className: 'tool-log' });
-    m.appendChild(document.createTextNode('⏺ ' + name));
-    var args = el('span', { className: 'args', text: JSON.stringify(input) });
-    m.appendChild(args);
+    m.appendChild(document.createTextNode(described.label));
+    if (described.detail) m.appendChild(el('span', { className: 'detail', text: described.detail }));
     chatEl.appendChild(m);
     scrollToBottom();
   }
