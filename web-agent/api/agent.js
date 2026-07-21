@@ -104,15 +104,29 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Request must include a non-empty "message" or a "resume".' });
     }
 
+    // From here on we stream: the model call itself is the slow part, and
+    // writing its text as it arrives (NDJSON lines) is what lets the client
+    // render replies incrementally instead of waiting for the whole turn.
+    // Once writeHead below fires we can no longer change the HTTP status,
+    // so failures past this point are reported as an in-stream error event
+    // instead (see the catch block).
+    res.writeHead(200, {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+    });
+    const emit = (obj) => res.write(JSON.stringify(obj) + '\n');
+
     for (let round = 0; round < MAX_ROUNDS; round++) {
-      const response = await client.messages.create({
+      const stream = client.messages.stream({
         model: process.env.CODE_AGENT_MODEL || 'claude-sonnet-4-5-20250929',
         max_tokens: 4096,
         system: systemPrompt,
         messages: history,
         tools: toolSchemas,
       });
+      stream.on('text', (delta) => emit({ type: 'text', delta }));
 
+      const response = await stream.finalMessage();
       history.push({ role: 'assistant', content: response.content });
 
       if (response.stop_reason !== 'tool_use') {
@@ -120,31 +134,40 @@ module.exports = async (req, res) => {
           .filter((b) => b.type === 'text')
           .map((b) => b.text)
           .join('\n');
-        return res.status(200).json({ status: 'done', reply: text, history });
+        emit({ type: 'final', status: 'done', reply: text, history });
+        return res.end();
       }
 
       const blocks = response.content.filter((b) => b.type === 'tool_use');
       const outcome = await processBlocks(blocks, [], ctx);
 
       if (outcome.confirmRequired) {
-        return res.status(200).json({ status: 'confirm_required', ...outcome.confirmRequired, history });
+        emit({ type: 'final', status: 'confirm_required', ...outcome.confirmRequired, history });
+        return res.end();
       }
 
       history.push({ role: 'user', content: outcome.results });
     }
 
-    return res.status(200).json({
+    emit({
+      type: 'final',
       status: 'done',
       reply: `Stopped after ${MAX_ROUNDS} tool rounds in this request to stay under the serverless time limit — send a follow-up to continue.`,
       history,
     });
+    return res.end();
   } catch (err) {
     // Log full detail server-side (visible in Vercel's Runtime Logs) since
     // SDK network errors often collapse to a generic "Connection error."
     // with the real cause only available on err.cause.
     console.error('agent.js failure:', err, err && err.cause);
     const causeMessage = err && err.cause && err.cause.message ? ` (${err.cause.message})` : '';
-    return res.status(500).json({ error: (err.message || 'Unknown error') + causeMessage });
+    const message = (err.message || 'Unknown error') + causeMessage;
+    if (res.headersSent) {
+      res.write(JSON.stringify({ type: 'error', error: message }) + '\n');
+      return res.end();
+    }
+    return res.status(500).json({ error: message });
   }
 };
 

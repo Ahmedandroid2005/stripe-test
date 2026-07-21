@@ -850,6 +850,26 @@
     scrollToBottom();
   }
 
+  // ---- live-streaming assistant bubble: plain text while chunks arrive,
+  // upgraded to full markdown once the turn finishes ----
+  function createLiveBubble() {
+    var m = el('div', { className: 'msg assistant' });
+    chatEl.appendChild(m);
+    return m;
+  }
+  function setLiveText(bubbleEl, accumulatedSoFar) {
+    bubbleEl.textContent = accumulatedSoFar;
+    scrollToBottom();
+  }
+  function finalizeLiveBubble(bubbleEl, fullText) {
+    if (!fullText || !fullText.trim()) {
+      bubbleEl.remove();
+      return;
+    }
+    bubbleEl.innerHTML = renderMarkdown(fullText);
+    scrollToBottom();
+  }
+
   function addNote(text, isError) {
     var m = el('div', { className: 'msg ' + (isError ? 'error' : 'note'), text: text });
     chatEl.appendChild(m);
@@ -965,7 +985,14 @@
     sendBtn.disabled = state.busy || !state.token || !hasContent;
   }
 
-  async function callApi(payload) {
+  /**
+   * Posts to /api/agent. The server streams NDJSON once it starts calling
+   * the model (Content-Type: application/x-ndjson) but returns a plain JSON
+   * error for failures that happen before that (auth, validation, missing
+   * env vars) — so both response shapes have to be handled here.
+   * onText(accumulatedTextSoFar) is called as text chunks arrive.
+   */
+  async function callApi(payload, onText) {
     if (state.repoConfig && (state.repoConfig.owner || state.repoConfig.repo || state.repoConfig.branch)) {
       payload.repoConfig = state.repoConfig;
     }
@@ -974,20 +1001,73 @@
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.token },
       body: JSON.stringify(payload),
     });
-    var data = await res.json().catch(function () { return { error: 'استجابة غير صالحة من الخادم.' }; });
-    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-    return data;
+
+    var contentType = res.headers.get('content-type') || '';
+    if (contentType.indexOf('ndjson') === -1) {
+      var data = await res.json().catch(function () { return { error: 'استجابة غير صالحة من الخادم.' }; });
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      return data;
+    }
+    if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
+
+    var reader = res.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+    var finalEvent = null;
+    var accumulated = '';
+
+    function handleLine(line) {
+      if (!line) return;
+      var evt = JSON.parse(line);
+      if (evt.type === 'text') {
+        accumulated += evt.delta;
+        if (onText) onText(accumulated);
+      } else if (evt.type === 'final') {
+        finalEvent = evt;
+      } else if (evt.type === 'error') {
+        var err = new Error(evt.error);
+        err.partialText = accumulated;
+        throw err;
+      }
+    }
+
+    while (true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      var lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (var i = 0; i < lines.length; i++) handleLine(lines[i]);
+    }
+    if (buffer.trim()) handleLine(buffer);
+
+    if (!finalEvent) {
+      var eofErr = new Error('انقطع الاتصال قبل اكتمال الرد.');
+      eofErr.partialText = accumulated;
+      throw eofErr;
+    }
+    finalEvent._streamedText = accumulated;
+    return finalEvent;
   }
 
-  function handleResult(data) {
+  function handleResult(data, liveBubbleEl) {
     state.history = data.history || state.history;
     persistActiveChat();
+
+    var text = data._streamedText !== undefined ? data._streamedText : data.reply;
+
     if (data.status === 'confirm_required') {
+      if (liveBubbleEl) finalizeLiveBubble(liveBubbleEl, data._streamedText || '');
       addToolLog(data.toolName, data.input);
       addConfirmCard(data);
       return;
     }
-    addAssistant(data.reply);
+
+    if (liveBubbleEl) {
+      finalizeLiveBubble(liveBubbleEl, text);
+    } else {
+      addAssistant(text);
+    }
   }
 
   async function send(text) {
@@ -1001,14 +1081,20 @@
     setBusy(true);
     addUser(text, attachmentsForDisplay);
     showTyping();
+    var liveBubble = null;
     try {
       var payload = { message: text, history: state.history };
       if (attachmentsForSend.length) payload.attachments = attachmentsForSend;
-      var data = await callApi(payload);
+      var data = await callApi(payload, function (accumulated) {
+        hideTyping();
+        if (!liveBubble) liveBubble = createLiveBubble();
+        setLiveText(liveBubble, accumulated);
+      });
       hideTyping();
-      handleResult(data);
+      handleResult(data, liveBubble);
     } catch (err) {
       hideTyping();
+      if (liveBubble) finalizeLiveBubble(liveBubble, err.partialText || '');
       addNote(err.message, true);
     } finally {
       setBusy(false);
@@ -1019,6 +1105,7 @@
   async function resume(pending, approved) {
     setBusy(true);
     showTyping();
+    var liveBubble = null;
     try {
       var data = await callApi({
         history: state.history,
@@ -1030,12 +1117,17 @@
           pendingBlocks: pending.pendingBlocks,
           completedResults: pending.completedResults,
         },
+      }, function (accumulated) {
+        hideTyping();
+        if (!liveBubble) liveBubble = createLiveBubble();
+        setLiveText(liveBubble, accumulated);
       });
       hideTyping();
       addNote(approved ? 'تم التنفيذ.' : 'تم الرفض.', false);
-      handleResult(data);
+      handleResult(data, liveBubble);
     } catch (err) {
       hideTyping();
+      if (liveBubble) finalizeLiveBubble(liveBubble, err.partialText || '');
       addNote(err.message, true);
     } finally {
       setBusy(false);
