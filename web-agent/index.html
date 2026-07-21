@@ -6,21 +6,21 @@
 <title>code-agent — ويب</title>
 <style>
   :root {
-    --bg: #0e0f16;
-    --bg-panel: #15161f;
-    --bg-panel-alt: #1c1e2a;
-    --bg-input: #1a1c27;
-    --border: rgba(148, 163, 255, 0.16);
-    --border-strong: rgba(148, 163, 255, 0.28);
-    --text: #ececf3;
-    --text-muted: #8b8fa3;
-    --accent-blue: #6d8cff;
-    --accent-blue-ink: #0a0b12;
-    --accent-orange: #f2b155;
-    --accent-green: #4ade80;
-    --accent-red: #f87171;
-    --accent-yellow: #f5cc4f;
-    --shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.55);
+    --bg: #ffffff;
+    --bg-panel: #f7f7f8;
+    --bg-panel-alt: #ececef;
+    --bg-input: #f2f2f4;
+    --border: rgba(15, 15, 20, 0.09);
+    --border-strong: rgba(15, 15, 20, 0.16);
+    --text: #1c1c22;
+    --text-muted: #6c6c78;
+    --accent-blue: #4f46e5;
+    --accent-blue-ink: #ffffff;
+    --accent-orange: #b45309;
+    --accent-green: #15803d;
+    --accent-red: #dc2626;
+    --accent-yellow: #92640a;
+    --shadow: 0 12px 30px -14px rgba(20, 20, 30, 0.18);
   }
 
   * { box-sizing: border-box; }
@@ -186,7 +186,7 @@
     font-weight: 700;
     cursor: pointer;
   }
-  .btn-approve { background: var(--accent-green); color: #0a0b12; border-color: var(--accent-green); }
+  .btn-approve { background: var(--accent-green); color: #ffffff; border-color: var(--accent-green); }
   .btn-deny { background: transparent; color: var(--accent-red); }
   .card .card-actions button:disabled { opacity: 0.5; cursor: default; }
   .card .card-actions button:focus-visible, footer button:focus-visible, footer textarea:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
@@ -231,7 +231,7 @@
   .pending-thumb .remove {
     position: absolute; top: 2px; right: 2px;
     width: 16px; height: 16px; border-radius: 50%;
-    background: rgba(10,11,18,0.85); color: #fff;
+    background: var(--accent-red); color: #fff;
     border: none; font-size: 11px; line-height: 16px; text-align: center; padding: 0; cursor: pointer;
   }
 
