@@ -992,7 +992,7 @@
    * env vars) — so both response shapes have to be handled here.
    * onText(accumulatedTextSoFar) is called as text chunks arrive.
    */
-  async function callApi(payload, onText) {
+  async function callApi(payload, onText, onToolCall) {
     if (state.repoConfig && (state.repoConfig.owner || state.repoConfig.repo || state.repoConfig.branch)) {
       payload.repoConfig = state.repoConfig;
     }
@@ -1022,6 +1022,8 @@
       if (evt.type === 'text') {
         accumulated += evt.delta;
         if (onText) onText(accumulated);
+      } else if (evt.type === 'tool_call') {
+        if (onToolCall) onToolCall(evt.name, evt.input);
       } else if (evt.type === 'final') {
         finalEvent = evt;
       } else if (evt.type === 'error') {
@@ -1113,6 +1115,9 @@
         hideTyping();
         if (!liveBubble) liveBubble = createLiveBubble();
         setLiveText(liveBubble, accumulated);
+      }, function (name, toolInput) {
+        hideTyping();
+        addToolLog(name, toolInput);
       });
       hideTyping();
       handleResult(data, liveBubble);
@@ -1145,6 +1150,9 @@
         hideTyping();
         if (!liveBubble) liveBubble = createLiveBubble();
         setLiveText(liveBubble, accumulated);
+      }, function (name, toolInput) {
+        hideTyping();
+        addToolLog(name, toolInput);
       });
       hideTyping();
       addNote(approved ? 'تم التنفيذ.' : 'تم الرفض.', false);

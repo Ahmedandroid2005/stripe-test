@@ -5,7 +5,7 @@
 // fits into the rest of the system).
 
 const { getFile, putFile, getTree, ensureBranch } = require('../github');
-const { validateRelPath, simpleGlobToRegExp } = require('./pathSafety');
+const { validateRelPath, simpleGlobToRegExp, isIgnoredPath } = require('./pathSafety');
 
 const MAX_CHARS = 60000;
 const BINARY_EXT = /\.(png|jpe?g|gif|ico|webp|pdf|zip|gz|tar|mp4|mp3|woff2?|ttf|eot|bin|exe|lock)$/i;
@@ -86,7 +86,7 @@ async function listFilesTool(input, ctx) {
   const entries = await getTree(ctx.token, ctx.owner, ctx.repo, ctx.branch);
   const pattern = typeof input.pattern === 'string' && input.pattern ? input.pattern : '**/*';
   const re = simpleGlobToRegExp(pattern);
-  const matched = entries.map((e) => e.path).filter((p) => re.test(p));
+  const matched = entries.map((e) => e.path).filter((p) => re.test(p) && !isIgnoredPath(p));
   if (matched.length === 0) return 'No files matched.';
   const capped = matched.slice(0, 500);
   return capped.join('\n') + (matched.length > 500 ? `\n\n[...${matched.length - 500} more]` : '');
@@ -97,7 +97,7 @@ async function searchCodeTool(input, ctx) {
   const glob = typeof input.glob === 'string' && input.glob ? input.glob : '**/*';
   const re = simpleGlobToRegExp(glob);
   const candidates = entries
-    .filter((e) => re.test(e.path) && e.size < 300000 && !BINARY_EXT.test(e.path))
+    .filter((e) => re.test(e.path) && e.size < 300000 && !BINARY_EXT.test(e.path) && !isIgnoredPath(e.path))
     .slice(0, 200);
   const matcher = input.isRegex ? new RegExp(input.query) : null;
 

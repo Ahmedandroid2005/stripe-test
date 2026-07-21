@@ -11,6 +11,7 @@ const fs = require('node:fs/promises');
 const { execFile } = require('node:child_process');
 const { getFile, getTree } = require('../github');
 const { BINARY_EXT } = require('./fileTools');
+const { isIgnoredPath } = require('./pathSafety');
 
 const MAX_OUTPUT_CHARS = 20000;
 
@@ -61,7 +62,9 @@ async function runCommandTool(input, ctx) {
 
 async function checkoutTreeToDisk(ctx, workdir) {
   const entries = await getTree(ctx.token, ctx.owner, ctx.repo, ctx.branch);
-  const textLike = entries.filter((e) => e.size < 500000 && !BINARY_EXT.test(e.path)).slice(0, 300);
+  const textLike = entries
+    .filter((e) => e.size < 500000 && !BINARY_EXT.test(e.path) && !isIgnoredPath(e.path))
+    .slice(0, 300);
   for (const entry of textLike) {
     const { content } = await getFile(ctx.token, ctx.owner, ctx.repo, ctx.branch, entry.path);
     const dest = path.join(workdir, entry.path);

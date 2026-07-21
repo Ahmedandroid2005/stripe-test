@@ -151,7 +151,7 @@ module.exports = async (req, res) => {
       }
 
       const blocks = response.content.filter((b) => b.type === 'tool_use');
-      const outcome = await processBlocks(blocks, [], ctx);
+      const outcome = await processBlocks(blocks, [], ctx, (name, input) => emit({ type: 'tool_call', name, input }));
 
       if (outcome.confirmRequired) {
         emit({ type: 'final', status: 'confirm_required', ...outcome.confirmRequired, history, activeRepo: activeRepoOf(ctx) });
@@ -212,13 +212,14 @@ async function resolvePending(resume, ctx) {
  * tool call and returns a confirmation payload instead of running it — the
  * caller must round-trip through the client for approval before continuing.
  */
-async function processBlocks(blocks, resultsSoFar, ctx) {
+async function processBlocks(blocks, resultsSoFar, ctx, onToolCall) {
   const results = [...resultsSoFar];
 
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
 
     if (!isMutating(block.name)) {
+      if (onToolCall) onToolCall(block.name, block.input);
       try {
         const content = await execute(block.name, block.input, ctx);
         results.push({ type: 'tool_result', tool_use_id: block.id, content });
